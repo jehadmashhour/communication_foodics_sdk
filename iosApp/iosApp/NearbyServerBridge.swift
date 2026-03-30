@@ -1,9 +1,9 @@
-
 import Foundation
 import UIKit
 import NearbyConnections
 
-@objc public class NearbyServerBridge: NSObject {
+@objc(NearbyServerBridge)          // ← pins ObjC runtime name, no module prefix
+public class NearbyServerBridge: NSObject {
 
     @objc public static let shared = NearbyServerBridge()
 
@@ -113,7 +113,6 @@ extension NearbyServerBridge: ConnectionManagerDelegate {
         cancellationToken token: CancellationToken
     ) {}
 
-    // ✅ Correct signature: non-optional URL and String (as required by the SDK)
     public func connectionManager(
         _ connectionManager: ConnectionManager,
         didStartReceivingResourceWithID payloadID: PayloadID,

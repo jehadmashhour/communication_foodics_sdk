@@ -28,7 +28,7 @@ actual class GoogleNearbyClientHandler {
 
     // Get bridge at runtime — no compile-time symbol dependency on NearbyClientBridge
     private val bridge: NSObject? by lazy {
-        val cls = NSClassFromString("NearbyClientBridge") ?: run {
+        val cls = NSClassFromString("CrossCommunicationLibrary.NearbyClientBridge") ?: run {
             println("[NearbyClient] NearbyClientBridge class not found at runtime")
             return@lazy null
         }

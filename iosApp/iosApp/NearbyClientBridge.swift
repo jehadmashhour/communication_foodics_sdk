@@ -1,9 +1,9 @@
-
 import Foundation
 import UIKit
 import NearbyConnections
 
-@objc public class NearbyClientBridge: NSObject {
+@objc(NearbyClientBridge)          // ← pins ObjC runtime name, no module prefix
+public class NearbyClientBridge: NSObject {
 
     @objc public static let shared = NearbyClientBridge()
 
@@ -139,7 +139,6 @@ extension NearbyClientBridge: ConnectionManagerDelegate {
         cancellationToken token: CancellationToken
     ) {}
 
-    // ✅ Correct signature: non-optional URL and String
     public func connectionManager(
         _ connectionManager: ConnectionManager,
         didStartReceivingResourceWithID payloadID: PayloadID,
