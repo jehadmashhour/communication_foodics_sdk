@@ -1,0 +1,3 @@
+package com.foodics.crosscommunicationlibrary.wifi_aware
+
+actual class WifiAwareServerHandler

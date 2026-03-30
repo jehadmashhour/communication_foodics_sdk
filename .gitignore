@@ -1,0 +1,129 @@
+# =========================
+# OS FILES
+# =========================
+.DS_Store
+.DS_Store?
+Thumbs.db
+
+# =========================
+# GRADLE
+# =========================
+.gradle/
+build/
+*/build/
+
+# Local config (DO NOT COMMIT)
+local.properties
+
+# Gradle wrapper (KEEP THESE)
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# =========================
+# KOTLIN
+# =========================
+.kotlin/
+
+# =========================
+# ANDROID
+# =========================
+*.apk
+*.aab
+captures/
+.externalNativeBuild/
+.cxx/
+
+# =========================
+# INTELLIJ / ANDROID STUDIO
+# =========================
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Optional: keep shared configs
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+
+# =========================
+# JAVA / JVM
+# =========================
+*.class
+*.jar
+*.war
+*.ear
+
+# =========================
+# LOGS
+# =========================
+*.log
+
+# =========================
+# SECRETS / ENV
+# =========================
+.env
+.env.*
+*.keystore
+*.jks
+*.properties
+
+# =========================
+# KMP / NATIVE
+# =========================
+# Kotlin/Native
+.konan/
+
+# Native build outputs
+*.o
+*.so
+*.dylib
+*.dll
+
+# CInterop generated
+cinterop/
+
+# =========================
+# iOS (Xcode)
+# =========================
+# Xcode user data
+xcuserdata/
+*.xcuserstate
+*.xcworkspace
+
+# Build outputs
+DerivedData/
+build/
+
+# Swift Package Manager
+.build/
+
+# CocoaPods (if used)
+Pods/
+Podfile.lock
+
+# =========================
+# FASTLANE (optional)
+# =========================
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots
+fastlane/test_output
+
+# =========================
+# TEST / COVERAGE
+# =========================
+coverage/
+reports/
+test-output/
+
+# =========================
+# TEMP FILES
+# =========================
+*~
+*.swp
+*.swo
+
+# =========================
+# NODE (if using JS target)
+# =========================
+node_modules/

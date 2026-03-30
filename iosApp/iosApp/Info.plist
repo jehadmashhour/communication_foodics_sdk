@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+    <dict>
+        <key>CADisableMinimumFrameDurationOnPhone</key>
+        <true/>
+
+        <key>CFBundleLocalizations</key>
+        <array>
+            <string>en</string>
+        </array>
+
+        <!-- ✅ Added for Nearby Connections BLE -->
+        <key>NSBluetoothAlwaysUsageDescription</key>
+        <string>Required to discover and connect to nearby devices.</string>
+
+        <key>NSLocalNetworkUsageDescription</key>
+        <string>Required to discover local network devices</string>
+
+        <!-- ✅ Kept existing + added generated Nearby Connections value -->
+        <key>NSBonjourServices</key>
+        <array>
+            <string>_foodics._tcp.</string>
+            <string>_77114F97E1F1._tcp.</string>
+        </array>
+
+        <key>UIApplicationSceneManifest</key>
+        <dict>
+            <key>UIApplicationSupportsMultipleScenes</key>
+            <false/>
+        </dict>
+
+        <!-- ✅ Added bluetooth-peripheral for Nearby Connections advertising -->
+        <key>UIBackgroundModes</key>
+        <array>
+            <string>bluetooth-central</string>
+            <string>bluetooth-peripheral</string>
+        </array>
+
+        <key>UILaunchScreen</key>
+        <dict/>
+    </dict>
+</plist>

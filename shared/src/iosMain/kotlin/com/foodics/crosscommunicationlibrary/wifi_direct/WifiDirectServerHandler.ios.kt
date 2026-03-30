@@ -1,0 +1,3 @@
+package com.foodics.crosscommunicationlibrary.wifi_direct
+
+actual class WifiDirectServerHandler
