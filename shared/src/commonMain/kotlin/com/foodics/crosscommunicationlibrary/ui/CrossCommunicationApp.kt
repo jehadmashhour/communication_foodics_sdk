@@ -16,13 +16,13 @@ fun CrossCommunicationApp() {
 
     val sdk = remember {
         CommunicationSDK.builder()
-//            .enableLan()
+            .enableLan()
 //            .enableBluetooth()
 //            .enableWifiDirect()
 //            .enableWifiAware()
             .enableGoogleNearby()
-//            .enableUdp()
-//            .enableCloud()
+            .enableUdp()
+            .enableCloud()
             .build()
     }
 

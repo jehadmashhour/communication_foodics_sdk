@@ -6,41 +6,29 @@ import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import kotlinx.coroutines.flow.Flow
 import scanner.IoTDevice
 
-actual class UDPCommunicationChannel actual constructor() :
-    CommunicationChannel {
-    actual override val connectionType: ConnectionType
-        get() = TODO("Not yet implemented")
+actual class UDPCommunicationChannel actual constructor() : CommunicationChannel {
+    private val serverHandler = UDPServerHandler()
+    private val clientHandler = UDPClientHandler()
 
-    actual override suspend fun startServer(deviceName: String, identifier: String) {
-    }
+    actual override val connectionType: ConnectionType = ConnectionType.UDP
 
-    actual override fun scan(): Flow<List<IoTDevice>> {
-        TODO("Not yet implemented")
-    }
+    actual override suspend fun startServer(deviceName: String, identifier: String) =
+        serverHandler.start(deviceName, identifier)
 
-    actual override suspend fun connectToServer(device: IoTDevice) {
-    }
+    actual override fun scan() = clientHandler.scan()
 
-    actual override suspend fun sendDataToServer(
-        data: ByteArray,
-        writeType: WriteType
-    ) {
-    }
+    actual override suspend fun connectToServer(device: IoTDevice) = clientHandler.connect(device)
 
-    actual override suspend fun receiveDateFromServer(): Flow<ByteArray> {
-        TODO("Not yet implemented")
-    }
+    actual override suspend fun sendDataToServer(data: ByteArray, writeType: WriteType) =
+        clientHandler.sendToServer(data, writeType)
 
-    actual override suspend fun sendDataToClient(data: ByteArray) {
-    }
+    actual override suspend fun receiveDateFromServer(): Flow<ByteArray> = clientHandler.receiveFromServer()
 
-    actual override suspend fun receiveDataFromClient(): Flow<ByteArray> {
-        TODO("Not yet implemented")
-    }
+    actual override suspend fun sendDataToClient(data: ByteArray) = serverHandler.sendToClient(data)
 
-    actual override suspend fun stopServer() {
-    }
+    actual override suspend fun receiveDataFromClient(): Flow<ByteArray> = serverHandler.receiveFromClient()
 
-    actual override suspend fun disconnectClient() {
-    }
+    actual override suspend fun stopServer() = serverHandler.stop()
+
+    actual override suspend fun disconnectClient() = clientHandler.disconnect()
 }
