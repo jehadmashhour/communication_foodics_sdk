@@ -9,6 +9,10 @@ struct iOSApp: App {
         // before any Kotlin Nearby handler is instantiated.
         NearbyBridgeProvider.shared.clientBridge = NearbyClientBridge()
         NearbyBridgeProvider.shared.serverBridge = NearbyServerBridge()
+
+        // Register MultipeerConnectivity bridges for WifiDirect channel.
+        MultipeerBridgeProvider.shared.serverBridge = MCPServerBridge()
+        MultipeerBridgeProvider.shared.clientBridge = MCPClientBridge()
     }
 
     var body: some Scene {
