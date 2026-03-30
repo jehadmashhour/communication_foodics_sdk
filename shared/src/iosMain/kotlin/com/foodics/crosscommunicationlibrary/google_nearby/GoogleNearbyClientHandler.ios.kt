@@ -1,4 +1,4 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
 package com.foodics.crosscommunicationlibrary.google_nearby
 
@@ -12,61 +12,71 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.Foundation.NSData
-import platform.Foundation.NSClassFromString
-import platform.Foundation.NSSelectorFromString
-import platform.Foundation.create
-import platform.Foundation.setValue
-import platform.darwin.NSObject
 import scanner.IoTDevice
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
-actual class GoogleNearbyClientHandler {
+/**
+ * iOS actual for GoogleNearbyClientHandler.
+ *
+ * Implements NearbyClientDelegate so the Swift bridge can call back into
+ * Kotlin via typed protocol methods — no ObjC runtime reflection needed.
+ *
+ * The bridge is accessed through NearbyBridgeProvider to avoid a retain
+ * cycle (bridge holds this handler via `delegate`; this handler does NOT
+ * hold a strong reference back to the bridge).
+ */
+actual class GoogleNearbyClientHandler : NearbyClientDelegate {
 
     private val _incoming = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
     private var connectContinuation: ((Result<Unit>) -> Unit)? = null
 
-    // Get bridge at runtime — no compile-time symbol dependency on NearbyClientBridge
-    private val bridge: NSObject? by lazy {
-        val cls = NSClassFromString("CrossCommunicationLibrary.NearbyClientBridge") ?: run {
-            println("[NearbyClient] NearbyClientBridge class not found at runtime")
-            return@lazy null
-        }
-        val sharedSel = NSSelectorFromString("shared")
-        (cls as NSObject).performSelector(sharedSel) as? NSObject
-    }
-
+    // Register ourselves as the delegate on the bridge immediately.
     init {
-        bridge?.let { b ->
-            b.setValue({ endpointId: String?, endpointName: String? ->
-                if (endpointId != null && endpointName != null)
-                    NearbyClientBridgeInterop.onEndpointFound(endpointId, endpointName)
-            }, forKey = "onEndpointFound")
-
-            b.setValue({ endpointId: String? ->
-                if (endpointId != null)
-                    NearbyClientBridgeInterop.onEndpointLost(endpointId)
-            }, forKey = "onEndpointLost")
-
-            b.setValue({ success: Boolean ->
-                connectContinuation?.invoke(
-                    if (success) Result.success(Unit)
-                    else Result.failure(Exception("Nearby connection failed"))
-                )
-                connectContinuation = null
-            }, forKey = "onConnectionResult")
-
-            b.setValue({ nsData: NSData? ->
-                nsData?.let { _incoming.tryEmit(it.toByteArray()) }
-            }, forKey = "onDataReceived")
-        }
+        NearbyBridgeProvider.clientBridge?.delegate = this
     }
+
+    // Always go through the provider — avoids a strong-reference cycle.
+    private val bridge get() = NearbyBridgeProvider.clientBridge
+
+    // ── NearbyClientDelegate (called by Swift) ────────────────────────────────
+
+    override fun onEndpointFound(endpointId: String, endpointName: String) {
+        NearbyClientBridgeInterop.onEndpointFound(endpointId, endpointName)
+    }
+
+    override fun onEndpointLost(endpointId: String) {
+        NearbyClientBridgeInterop.onEndpointLost(endpointId)
+    }
+
+    override fun onConnectionResult(success: Boolean) {
+        val cb = connectContinuation
+        connectContinuation = null
+        cb?.invoke(
+            if (success) Result.success(Unit)
+            else Result.failure(Exception("Nearby connection failed"))
+        )
+    }
+
+    override fun onDisconnected() {
+        // If a connect() coroutine is still suspended waiting for a result,
+        // resume it with failure so it doesn't leak forever.
+        val cb = connectContinuation
+        connectContinuation = null
+        cb?.invoke(Result.failure(Exception("Nearby connection dropped")))
+    }
+
+    override fun onDataReceived(data: NSData) {
+        _incoming.tryEmit(data.toByteArray())
+    }
+
+    // ── Public API (called by GoogleNearbyCommunicationChannel) ───────────────
 
     fun scan(): Flow<List<IoTDevice>> = callbackFlow {
         NearbyClientBridgeInterop.startDiscovery(onUpdate = { trySend(it) })
-        bridge?.performSelector(NSSelectorFromString("startDiscovery"))
+        bridge?.startDiscovery()
         awaitClose {
-            bridge?.performSelector(NSSelectorFromString("stopDiscovery"))
+            bridge?.stopDiscovery()
             NearbyClientBridgeInterop.stopDiscovery()
         }
     }
@@ -78,27 +88,21 @@ actual class GoogleNearbyClientHandler {
                 onFailure = { cont.resumeWithException(it) }
             )
         }
-        bridge?.performSelector(
-            NSSelectorFromString("requestConnection:"),
-            withObject = device.address ?: ""
-        )
+        bridge?.requestConnection(device.address ?: "")
     }
 
     suspend fun sendToServer(data: ByteArray, writeType: WriteType) {
-        bridge?.performSelector(
-            NSSelectorFromString("sendData:"),
-            withObject = data.toNSData()
-        )
+        bridge?.sendData(data.toNSData())
     }
 
-    suspend fun receiveFromServer(): Flow<ByteArray> = _incoming.asSharedFlow()
+    fun receiveFromServer(): Flow<ByteArray> = _incoming.asSharedFlow()
 
     suspend fun disconnect() {
-        bridge?.performSelector(NSSelectorFromString("disconnect"))
+        bridge?.disconnect()
     }
 }
 
-// ── Device interop ───────────────────────────────────────────────────────────
+// ── Device list management ────────────────────────────────────────────────────
 
 internal object NearbyClientBridgeInterop {
     private val discoveredDevices = mutableMapOf<String, IoTDevice>()

@@ -1,15 +1,14 @@
 import SwiftUI
+import shared   // KMP framework — NearbyBridgeProvider lives here
 
 @main
 struct iOSApp: App {
 
     init() {
-        // Force ObjC class registration before the KMP shared framework
-        // initializes its lazy bridge references. Without this, Swift classes
-        // in a static framework may not be registered in the ObjC runtime yet
-        // when Kotlin calls NSClassFromString on a background thread.
-        _ = NearbyServerBridge.shared
-        _ = NearbyClientBridge.shared
+        // Register the Swift bridge implementations with the KMP singleton
+        // before any Kotlin Nearby handler is instantiated.
+        NearbyBridgeProvider.shared.clientBridge = NearbyClientBridge()
+        NearbyBridgeProvider.shared.serverBridge = NearbyServerBridge()
     }
 
     var body: some Scene {

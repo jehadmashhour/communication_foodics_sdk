@@ -1,20 +1,20 @@
 import Foundation
 import UIKit
 import NearbyConnections
+import shared   // KMP framework — NearbyServerBridgeProtocol lives here
 
-@objc(NearbyServerBridge)          // ← pins ObjC runtime name, no module prefix
-public class NearbyServerBridge: NSObject {
+/// Implements the Kotlin-defined NearbyServerBridgeProtocol (ObjC protocol).
+/// Swift sets itself as `serverBridge` on NearbyBridgeProvider during app init.
+/// All Nearby SDK calls originate here; all events flow back via the delegate.
+public class NearbyServerBridge: NSObject, NearbyServerBridgeProtocol {
 
-    @objc public static let shared = NearbyServerBridge()
-
-    // Closures set by Kotlin iosMain
-    @objc public var onDataReceived: ((Data) -> Void)?
+    public var delegate: (any NearbyServerDelegate)?
 
     private let connectionManager: ConnectionManager
     private var advertiser: Advertiser?
     private var connectedEndpoints: [EndpointID] = []
 
-    private override init() {
+    public override init() {
         connectionManager = ConnectionManager(
             serviceID: "com.foodics.crosscommunicationlibrary",
             strategy: .star
@@ -23,16 +23,16 @@ public class NearbyServerBridge: NSObject {
         connectionManager.delegate = self
     }
 
-    // MARK: - Called from Kotlin iosMain
+    // MARK: - NearbyServerBridgeProtocol
 
-    @objc public func startAdvertising(_ endpointName: String) {
+    public func startAdvertising(endpointName: String) {
         advertiser = Advertiser(connectionManager: connectionManager)
         advertiser?.delegate = self
         advertiser?.startAdvertising(using: endpointName.data(using: .utf8) ?? Data())
         NSLog("[NearbyServer] Advertising started as: \(endpointName)")
     }
 
-    @objc public func sendData(_ data: Data) {
+    public func sendData(data: Data) {
         guard !connectedEndpoints.isEmpty else {
             NSLog("[NearbyServer] sendData: no connected endpoints")
             return
@@ -40,7 +40,7 @@ public class NearbyServerBridge: NSObject {
         _ = connectionManager.send(data, to: connectedEndpoints)
     }
 
-    @objc public func stopAdvertising() {
+    public func stopAdvertising() {
         advertiser?.stopAdvertising()
         advertiser = nil
         connectedEndpoints.forEach { connectionManager.disconnect(from: $0) }
@@ -86,9 +86,11 @@ extension NearbyServerBridge: ConnectionManagerDelegate {
             NSLog("[NearbyServer] Client connecting: \(endpointID)")
         case .connected:
             connectedEndpoints.append(endpointID)
+            delegate?.onClientConnected(endpointId: endpointID)
             NSLog("[NearbyServer] Client connected: \(endpointID)")
         case .disconnected:
             connectedEndpoints.removeAll { $0 == endpointID }
+            delegate?.onClientDisconnected(endpointId: endpointID)
             NSLog("[NearbyServer] Client disconnected: \(endpointID)")
         @unknown default:
             break
@@ -102,7 +104,7 @@ extension NearbyServerBridge: ConnectionManagerDelegate {
         from endpointID: EndpointID
     ) {
         NSLog("[NearbyServer] Received \(data.count) bytes from \(endpointID)")
-        onDataReceived?(data)
+        delegate?.onDataReceived(data: data)
     }
 
     public func connectionManager(

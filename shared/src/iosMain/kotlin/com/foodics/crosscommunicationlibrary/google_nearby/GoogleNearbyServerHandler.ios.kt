@@ -1,63 +1,60 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class, kotlinx.cinterop.BetaInteropApi::class)
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 
 package com.foodics.crosscommunicationlibrary.google_nearby
 
 import com.foodics.crosscommunicationlibrary.cloud.toByteArray
 import com.foodics.crosscommunicationlibrary.cloud.toNSData
-import kotlinx.cinterop.allocArrayOf
-import kotlinx.cinterop.memScoped
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import platform.Foundation.NSData
-import platform.Foundation.NSSelectorFromString
-import platform.Foundation.NSClassFromString
-import platform.Foundation.create
-import platform.Foundation.setValue
-import platform.darwin.NSObject
 
-actual class GoogleNearbyServerHandler {
+/**
+ * iOS actual for GoogleNearbyServerHandler.
+ *
+ * Implements NearbyServerDelegate so the Swift bridge can deliver received
+ * payloads back to Kotlin via a typed protocol method.
+ */
+actual class GoogleNearbyServerHandler : NearbyServerDelegate {
 
     private val _fromClient = MutableSharedFlow<ByteArray>(extraBufferCapacity = 64)
-
-    // Get the bridge instance at runtime — avoids compile-time symbol reference
-    private val bridge: NSObject? by lazy {
-        val cls = NSClassFromString("CrossCommunicationLibrary.NearbyServerBridge") ?: run {
-            println("[NearbyServer] NearbyServerBridge class not found at runtime")
-            return@lazy null
-        }
-        val sharedSel = NSSelectorFromString("shared")
-        (cls as NSObject).performSelector(sharedSel) as? NSObject
-    }
+    private val connectedClients = mutableSetOf<String>()
 
     init {
-        bridge?.let { b ->
-            // Set the onDataReceived closure
-            val block: (NSData?) -> Unit = { nsData ->
-                nsData?.let { _fromClient.tryEmit(it.toByteArray()) }
-            }
-            b.setValue(block, forKey = "onDataReceived")
-        }
+        NearbyBridgeProvider.serverBridge?.delegate = this
     }
 
+    private val bridge get() = NearbyBridgeProvider.serverBridge
+
+    // ── NearbyServerDelegate (called by Swift) ────────────────────────────────
+
+    override fun onClientConnected(endpointId: String) {
+        connectedClients += endpointId
+        println("[NearbyServer] Client connected: $endpointId (total: ${connectedClients.size})")
+    }
+
+    override fun onClientDisconnected(endpointId: String) {
+        connectedClients -= endpointId
+        println("[NearbyServer] Client disconnected: $endpointId (remaining: ${connectedClients.size})")
+    }
+
+    override fun onDataReceived(data: NSData) {
+        _fromClient.tryEmit(data.toByteArray())
+    }
+
+    // ── Public API ────────────────────────────────────────────────────────────
+
     suspend fun start(deviceName: String, identifier: String) {
-        val name = "$deviceName|$identifier"
-        bridge?.performSelector(
-            NSSelectorFromString("startAdvertising:"),
-            withObject = name
-        )
+        bridge?.startAdvertising("$deviceName|$identifier")
     }
 
     suspend fun sendToClient(data: ByteArray) {
-        bridge?.performSelector(
-            NSSelectorFromString("sendData:"),
-            withObject = data.toNSData()
-        )
+        bridge?.sendData(data.toNSData())
     }
 
     fun receiveFromClient(): Flow<ByteArray> = _fromClient.asSharedFlow()
 
     suspend fun stop() {
-        bridge?.performSelector(NSSelectorFromString("stopAdvertising"))
+        bridge?.stopAdvertising()
     }
 }
