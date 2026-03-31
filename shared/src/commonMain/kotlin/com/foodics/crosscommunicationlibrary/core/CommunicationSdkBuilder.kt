@@ -7,6 +7,7 @@ import com.foodics.crosscommunicationlibrary.lan.LanCommunicationChannel
 import com.foodics.crosscommunicationlibrary.qr.QRCommunicationChannel
 import com.foodics.crosscommunicationlibrary.udp.UDPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ssdp.SSDPCommunicationChannel
+import com.foodics.crosscommunicationlibrary.nfc.NFCCommunicationChannel
 import com.foodics.crosscommunicationlibrary.uwb.UWBCommunicationChannel
 import com.foodics.crosscommunicationlibrary.webrtc.WebRTCCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_aware.WifiAwareCommunicationChannel
@@ -58,6 +59,10 @@ class CommunicationSdkBuilder {
 
     fun enableUwb(): CommunicationSdkBuilder = apply {
         channels += UWBCommunicationChannel()
+    }
+
+    fun enableNfc(): CommunicationSdkBuilder = apply {
+        channels += NFCCommunicationChannel()
     }
 
     fun build(): CommunicationSDK {

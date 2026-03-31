@@ -167,6 +167,7 @@ class MainScreen(
             ConnectionType.WEBRTC -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.6f)
             ConnectionType.SSDP -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.6f)
             ConnectionType.UWB -> MaterialTheme.colorScheme.primary.copy(alpha = 0.9f)
+            ConnectionType.NFC -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f)
             null -> MaterialTheme.colorScheme.outline
 
         }

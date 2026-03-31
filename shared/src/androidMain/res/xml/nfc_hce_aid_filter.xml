@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NFC Type 4 NDEF Application AID filter for Host Card Emulation.
+    AID D2760000850101 is the NDEF Application registered with NFC Forum.
+-->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/nfc_hce_description"
+    android:requireDeviceUnlock="false">
+
+    <aid-group
+        android:description="@string/nfc_hce_description"
+        android:category="other">
+        <aid-filter android:name="D2760000850101" />
+    </aid-group>
+
+</host-apdu-service>

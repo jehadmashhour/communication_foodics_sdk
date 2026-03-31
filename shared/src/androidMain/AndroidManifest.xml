@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- NFC permissions -->
+    <uses-permission android:name="android.permission.NFC" />
+    <uses-feature android:name="android.hardware.nfc" android:required="false" />
+    <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
+
+    <application>
+        <!--
+            NFC Host Card Emulation service.
+            Emulates an NFC Type 4 NDEF tag so a tapping client (Android/iOS)
+            can discover the server's TCP connection parameters without UDP multicast.
+        -->
+        <service
+            android:name="com.foodics.crosscommunicationlibrary.nfc.NfcHceService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NFC_SERVICE">
+            <intent-filter>
+                <action android:name="android.nfc.cardemulation.action.HOST_APDU_SERVICE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.nfc.cardemulation.host_apdu_service"
+                android:resource="@xml/nfc_hce_aid_filter" />
+        </service>
+    </application>
+
+</manifest>

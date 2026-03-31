@@ -9,7 +9,8 @@ enum class ConnectionType {
     QR,
     WEBRTC,
     SSDP,
-    UWB
+    UWB,
+    NFC
 //    USB
 
 }
