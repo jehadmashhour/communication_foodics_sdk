@@ -5,6 +5,7 @@ import client.WriteType
 import ConnectionType
 import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.CompletionListener
 import io.ably.lib.types.ClientOptions
 import io.ably.lib.types.PresenceMessage
 import kotlinx.coroutines.*
@@ -96,7 +97,7 @@ actual class WebRTCClientHandler {
         }
 
         // Send join request
-        signalChannel?.publish("join", JSONObject().apply { put("clientId", clientId) }.toString(), null)
+        signalChannel?.publish("join", JSONObject().apply { put("clientId", clientId) }.toString(), null as CompletionListener?)
         Log.i(TAG, "Join sent to server: $serverIdentifier")
 
         // Wait for offer (max 15 s)
@@ -140,6 +141,7 @@ actual class WebRTCClientHandler {
                 override fun onAddStream(s: MediaStream?) {}
                 override fun onRemoveStream(s: MediaStream?) {}
                 override fun onRenegotiationNeeded() {}
+                override fun onIceCandidatesRemoved(c: Array<out IceCandidate>?) {}
                 override fun onAddTrack(r: RtpReceiver?, s: Array<out MediaStream>?) {}
             }
         ) ?: run { Log.e(TAG, "Failed to create PeerConnection"); return@withContext }
@@ -209,7 +211,7 @@ actual class WebRTCClientHandler {
             put("sdp", answer.description)
             put("iceCandidates", candidatesJson)
         }.toString()
-        signalChannel?.publish("answer", answerPayload, null)
+        signalChannel?.publish("answer", answerPayload, null as CompletionListener?)
         Log.i(TAG, "Answer sent (${collectedCandidates.size} ICE candidates)")
     }
 

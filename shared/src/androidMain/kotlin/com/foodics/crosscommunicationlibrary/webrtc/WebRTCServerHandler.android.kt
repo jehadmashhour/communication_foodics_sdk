@@ -3,6 +3,7 @@ package com.foodics.crosscommunicationlibrary.webrtc
 import android.util.Log
 import io.ably.lib.realtime.AblyRealtime
 import io.ably.lib.realtime.Channel
+import io.ably.lib.realtime.CompletionListener
 import io.ably.lib.types.ClientOptions
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
@@ -114,6 +115,7 @@ actual class WebRTCServerHandler {
                 override fun onAddStream(s: MediaStream?) {}
                 override fun onRemoveStream(s: MediaStream?) {}
                 override fun onRenegotiationNeeded() {}
+                override fun onIceCandidatesRemoved(c: Array<out IceCandidate>?) {}
                 override fun onAddTrack(r: RtpReceiver?, s: Array<out MediaStream>?) {}
             }
         ) ?: run {
@@ -178,7 +180,7 @@ actual class WebRTCServerHandler {
             put("targetClientId", clientId)
             put("iceCandidates", candidatesJson)
         }.toString()
-        signalChannel?.publish("offer", offerPayload, null)
+        signalChannel?.publish("offer", offerPayload, null as CompletionListener?)
         Log.i(TAG, "Offer sent to client: $clientId (${collectedCandidates.size} ICE candidates)")
     }
 
