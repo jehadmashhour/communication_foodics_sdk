@@ -163,6 +163,7 @@ class MainScreen(
             ConnectionType.GOOGLE_NEARBY -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.8f)
             ConnectionType.UDP -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
             ConnectionType.CLOUD -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f)
+            ConnectionType.QR -> MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
             null -> MaterialTheme.colorScheme.outline
 
         }

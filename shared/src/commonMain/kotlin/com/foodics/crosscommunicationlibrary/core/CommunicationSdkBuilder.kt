@@ -4,6 +4,7 @@ import com.foodics.crosscommunicationlibrary.bluetooth.BluetoothCommunicationCha
 import com.foodics.crosscommunicationlibrary.cloud.CloudCommunicationChannel
 import com.foodics.crosscommunicationlibrary.google_nearby.GoogleNearbyCommunicationChannel
 import com.foodics.crosscommunicationlibrary.lan.LanCommunicationChannel
+import com.foodics.crosscommunicationlibrary.qr.QRCommunicationChannel
 import com.foodics.crosscommunicationlibrary.udp.UDPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_aware.WifiAwareCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_direct.WifiDirectCommunicationChannel
@@ -40,6 +41,9 @@ class CommunicationSdkBuilder {
         channels += CloudCommunicationChannel()
     }
 
+    fun enableQR(): CommunicationSdkBuilder = apply {
+        channels += QRCommunicationChannel()
+    }
 
     fun build(): CommunicationSDK {
         require(channels.isNotEmpty()) {

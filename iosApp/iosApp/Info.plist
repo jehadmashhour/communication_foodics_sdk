@@ -11,6 +11,9 @@
         </array>
 
         <!-- ✅ Added for Nearby Connections BLE -->
+        <key>NSCameraUsageDescription</key>
+        <string>Required to scan QR codes for device discovery.</string>
+
         <key>NSBluetoothAlwaysUsageDescription</key>
         <string>Required to discover and connect to nearby devices.</string>
 

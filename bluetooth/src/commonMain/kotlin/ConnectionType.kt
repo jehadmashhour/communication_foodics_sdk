@@ -5,7 +5,8 @@ enum class ConnectionType {
     WIFI_AWARE,
     GOOGLE_NEARBY,
     UDP,
-    CLOUD
+    CLOUD,
+    QR
 //    USB
 
 }

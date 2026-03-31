@@ -13,6 +13,10 @@ struct iOSApp: App {
         // Register MultipeerConnectivity bridges for WifiDirect channel.
         MultipeerBridgeProvider.shared.serverBridge = MCPServerBridge()
         MultipeerBridgeProvider.shared.clientBridge = MCPClientBridge()
+
+        // Register QR Code bridges.
+        QRBridgeProvider.shared.scannerBridge   = QRClientBridge()
+        QRBridgeProvider.shared.generatorBridge = QRServerBridge()
     }
 
     var body: some Scene {

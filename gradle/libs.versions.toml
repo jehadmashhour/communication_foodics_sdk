@@ -29,6 +29,10 @@ hilt = "2.50"
 androidxHiltNavigationCompose = "1.1.0"
 lifecycleViewModelCompose = "2.8.4"
 playServicesNearby = "19.3.0"
+cameraX = "1.4.2"
+mlkitBarcode = "17.3.0"
+zxingCore = "3.5.3"
+lifecycleRuntimeCompose = "2.8.4"
 
 
 [libraries]
@@ -82,6 +86,12 @@ androidx-hilt-navigation-compose = {group = "androidx.hilt", name = "hilt-naviga
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewModelCompose" }
 jmdns = { module = "org.jmdns:jmdns", version = "3.6.3" }
 play-services-nearby = { module = "com.google.android.gms:play-services-nearby", version.ref = "playServicesNearby" }
+camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "cameraX" }
+camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "cameraX" }
+camerax-view = { module = "androidx.camera:camera-view", version.ref = "cameraX" }
+mlkit-barcode = { module = "com.google.mlkit:barcode-scanning", version.ref = "mlkitBarcode" }
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxingCore" }
+lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

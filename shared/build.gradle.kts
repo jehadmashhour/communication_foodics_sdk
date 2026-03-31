@@ -72,6 +72,13 @@ kotlin {
                 implementation(libs.androidx.lifecycle.viewmodel.compose)
                 implementation(libs.play.services.nearby)
                 implementation(libs.ably.java)
+                // QR Code
+                implementation(libs.zxing.core)
+                implementation(libs.mlkit.barcode)
+                implementation(libs.camerax.camera2)
+                implementation(libs.camerax.lifecycle)
+                implementation(libs.camerax.view)
+                implementation(libs.lifecycle.runtime.compose)
             }
         }
 
