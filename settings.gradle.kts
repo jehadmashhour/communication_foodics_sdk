@@ -13,6 +13,7 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://jitpack.io")
+        maven("https://repo.eclipse.org/content/repositories/paho-releases/")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     }
 

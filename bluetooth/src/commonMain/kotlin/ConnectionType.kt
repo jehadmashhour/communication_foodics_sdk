@@ -10,7 +10,8 @@ enum class ConnectionType {
     WEBRTC,
     SSDP,
     UWB,
-    NFC
+    NFC,
+    MQTT
 //    USB
 
 }

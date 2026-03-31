@@ -7,6 +7,7 @@ import com.foodics.crosscommunicationlibrary.lan.LanCommunicationChannel
 import com.foodics.crosscommunicationlibrary.qr.QRCommunicationChannel
 import com.foodics.crosscommunicationlibrary.udp.UDPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ssdp.SSDPCommunicationChannel
+import com.foodics.crosscommunicationlibrary.mqtt.MQTTCommunicationChannel
 import com.foodics.crosscommunicationlibrary.nfc.NFCCommunicationChannel
 import com.foodics.crosscommunicationlibrary.uwb.UWBCommunicationChannel
 import com.foodics.crosscommunicationlibrary.webrtc.WebRTCCommunicationChannel
@@ -63,6 +64,10 @@ class CommunicationSdkBuilder {
 
     fun enableNfc(): CommunicationSdkBuilder = apply {
         channels += NFCCommunicationChannel()
+    }
+
+    fun enableMqtt(brokerUrl: String = "tcp://broker.hivemq.com:1883"): CommunicationSdkBuilder = apply {
+        channels += MQTTCommunicationChannel(brokerUrl)
     }
 
     fun build(): CommunicationSDK {

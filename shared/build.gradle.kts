@@ -34,6 +34,7 @@ kotlin {
         version = "1.0.0"
 
         pod("Ably", "~> 1.2")
+        pod("CocoaMQTT", "~> 2.1")
 
         framework {
             baseName = "shared"
@@ -76,6 +77,8 @@ kotlin {
                 implementation(libs.stream.webrtc.android)
                 // UWB
                 implementation(libs.androidx.core.uwb)
+                // MQTT
+                implementation(libs.paho.mqtt)
                 // QR Code
                 implementation(libs.zxing.core)
                 implementation(libs.mlkit.barcode)
