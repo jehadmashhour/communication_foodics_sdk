@@ -17,6 +17,10 @@ struct iOSApp: App {
         // Register QR Code bridges.
         QRBridgeProvider.shared.scannerBridge   = QRClientBridge()
         QRBridgeProvider.shared.generatorBridge = QRServerBridge()
+
+        // Register WebRTC bridges.
+        WebRTCBridgeProvider.shared.serverBridge = WebRTCServerBridge()
+        WebRTCBridgeProvider.shared.clientBridge = WebRTCClientBridge()
     }
 
     var body: some Scene {

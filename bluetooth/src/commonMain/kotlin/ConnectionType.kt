@@ -6,7 +6,8 @@ enum class ConnectionType {
     GOOGLE_NEARBY,
     UDP,
     CLOUD,
-    QR
+    QR,
+    WEBRTC
 //    USB
 
 }

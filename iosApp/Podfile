@@ -6,6 +6,7 @@ use_frameworks!
 target 'iosApp' do
   pod 'shared', :path => '../shared'
   pod 'Ably', '~> 1.2'
+  pod 'GoogleWebRTC', '~> 1.1'
 end
 
 post_install do |installer|

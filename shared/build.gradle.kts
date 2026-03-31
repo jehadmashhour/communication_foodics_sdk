@@ -72,6 +72,8 @@ kotlin {
                 implementation(libs.androidx.lifecycle.viewmodel.compose)
                 implementation(libs.play.services.nearby)
                 implementation(libs.ably.java)
+                // WebRTC
+                implementation(libs.stream.webrtc.android)
                 // QR Code
                 implementation(libs.zxing.core)
                 implementation(libs.mlkit.barcode)

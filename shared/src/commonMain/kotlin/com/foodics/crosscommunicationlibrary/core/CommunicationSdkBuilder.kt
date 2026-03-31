@@ -6,6 +6,7 @@ import com.foodics.crosscommunicationlibrary.google_nearby.GoogleNearbyCommunica
 import com.foodics.crosscommunicationlibrary.lan.LanCommunicationChannel
 import com.foodics.crosscommunicationlibrary.qr.QRCommunicationChannel
 import com.foodics.crosscommunicationlibrary.udp.UDPCommunicationChannel
+import com.foodics.crosscommunicationlibrary.webrtc.WebRTCCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_aware.WifiAwareCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_direct.WifiDirectCommunicationChannel
 
@@ -43,6 +44,10 @@ class CommunicationSdkBuilder {
 
     fun enableQR(): CommunicationSdkBuilder = apply {
         channels += QRCommunicationChannel()
+    }
+
+    fun enableWebRTC(): CommunicationSdkBuilder = apply {
+        channels += WebRTCCommunicationChannel()
     }
 
     fun build(): CommunicationSDK {
