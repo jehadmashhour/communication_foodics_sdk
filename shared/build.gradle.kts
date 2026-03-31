@@ -74,6 +74,8 @@ kotlin {
                 implementation(libs.ably.java)
                 // WebRTC
                 implementation(libs.stream.webrtc.android)
+                // UWB
+                implementation(libs.androidx.core.uwb)
                 // QR Code
                 implementation(libs.zxing.core)
                 implementation(libs.mlkit.barcode)

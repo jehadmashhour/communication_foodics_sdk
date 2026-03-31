@@ -34,6 +34,7 @@ mlkitBarcode = "17.3.0"
 zxingCore = "3.5.3"
 lifecycleRuntimeCompose = "2.8.4"
 streamWebrtcAndroid = "1.1.2"
+uwb = "1.0.0-alpha08"
 
 
 [libraries]
@@ -94,6 +95,7 @@ mlkit-barcode = { module = "com.google.mlkit:barcode-scanning", version.ref = "m
 zxing-core = { module = "com.google.zxing:core", version.ref = "zxingCore" }
 lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycleRuntimeCompose" }
 stream-webrtc-android = { module = "io.getstream:stream-webrtc-android", version.ref = "streamWebrtcAndroid" }
+androidx-core-uwb = { module = "androidx.core.uwb:uwb", version.ref = "uwb" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

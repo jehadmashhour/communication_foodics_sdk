@@ -8,7 +8,8 @@ enum class ConnectionType {
     CLOUD,
     QR,
     WEBRTC,
-    SSDP
+    SSDP,
+    UWB
 //    USB
 
 }
