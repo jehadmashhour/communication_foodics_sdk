@@ -86,6 +86,8 @@ kotlin {
                 implementation(libs.camerax.lifecycle)
                 implementation(libs.camerax.view)
                 implementation(libs.lifecycle.runtime.compose)
+                implementation(libs.androidx.concurrent.futures)
+                implementation(libs.guava)
             }
         }
 

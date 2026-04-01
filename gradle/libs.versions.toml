@@ -36,6 +36,8 @@ lifecycleRuntimeCompose = "2.8.4"
 streamWebrtcAndroid = "1.1.2"
 uwb = "1.0.0-alpha08"
 pahomqtt = "1.2.5"
+concurrentFutures = "1.1.0"
+guava = "33.0.0-android"
 
 
 [libraries]
@@ -98,6 +100,8 @@ lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-com
 stream-webrtc-android = { module = "io.getstream:stream-webrtc-android", version.ref = "streamWebrtcAndroid" }
 androidx-core-uwb = { module = "androidx.core.uwb:uwb", version.ref = "uwb" }
 paho-mqtt = { module = "org.eclipse.paho:org.eclipse.paho.client.mqttv3", version.ref = "pahomqtt" }
+androidx-concurrent-futures = { module = "androidx.concurrent:concurrent-futures", version.ref = "concurrentFutures" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

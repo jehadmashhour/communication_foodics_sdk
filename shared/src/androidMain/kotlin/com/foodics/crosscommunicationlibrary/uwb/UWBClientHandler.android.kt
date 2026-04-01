@@ -1,5 +1,3 @@
-@file:OptIn(androidx.core.uwb.ExperimentalUwbApi::class)
-
 package com.foodics.crosscommunicationlibrary.uwb
 
 import android.content.Context
@@ -8,7 +6,6 @@ import android.os.Build
 import android.util.Log
 import androidx.core.uwb.RangingParameters
 import androidx.core.uwb.RangingResult
-import androidx.core.uwb.UwbAddress
 import androidx.core.uwb.UwbComplexChannel
 import androidx.core.uwb.UwbDevice
 import androidx.core.uwb.UwbManager
@@ -138,13 +135,14 @@ actual class UWBClientHandler {
             // Start FiRa ranging as Controlee
             val serverAddr = byteArrayOf(info.addrB0.toByte(), info.addrB1.toByte())
             val params = RangingParameters(
-                uwbConfigType  = RangingParameters.CONFIG_UNICAST_DS_TWR,
-                sessionId      = info.sessionId,
-                subSessionId   = 0,
-                sessionKeyInfo = null,
-                complexChannel = UwbComplexChannel(info.channel, info.preamble),
-                peerDevices    = listOf(UwbDevice.createForAddress(UwbAddress(serverAddr))),
-                updateRateType = RangingParameters.RANGING_UPDATE_RATE_AUTOMATIC
+                uwbConfigType     = RangingParameters.CONFIG_UNICAST_DS_TWR,
+                sessionId         = info.sessionId,
+                subSessionId      = 0,
+                sessionKeyInfo    = null,
+                subSessionKeyInfo = null,
+                complexChannel    = UwbComplexChannel(info.channel, info.preamble),
+                peerDevices       = listOf(UwbDevice.createForAddress(serverAddr)),
+                updateRateType    = RangingParameters.RANGING_UPDATE_RATE_AUTOMATIC
             )
 
             Log.i(TAG, "UWB ranging started (Controlee)")

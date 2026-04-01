@@ -23,6 +23,12 @@ fun CrossCommunicationApp() {
             .enableGoogleNearby()
             .enableUdp()
             .enableCloud()
+//            .enableQR()
+            .enableWebRTC()
+            .enableSsdp()
+            .enableUwb()
+            .enableNfc()
+            .enableMqtt()
             .build()
     }
 
