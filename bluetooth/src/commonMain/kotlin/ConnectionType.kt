@@ -11,7 +11,8 @@ enum class ConnectionType {
     SSDP,
     UWB,
     NFC,
-    MQTT
+    MQTT,
+    WS_DISCOVERY
 //    USB
 
 }
