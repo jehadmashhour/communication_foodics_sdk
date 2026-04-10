@@ -17,6 +17,7 @@ enum class ConnectionType {
     WEBSOCKET,
     USB,
     BLUETOOTH_CLASSIC,
-    COAP
+    COAP,
+    STOMP
 
 }
