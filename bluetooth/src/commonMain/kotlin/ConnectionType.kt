@@ -13,7 +13,8 @@ enum class ConnectionType {
     NFC,
     MQTT,
     WS_DISCOVERY,
-    HTTP_REST
+    HTTP_REST,
+    WEBSOCKET
 //    USB
 
 }

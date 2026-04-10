@@ -31,6 +31,7 @@ fun CrossCommunicationApp() {
             .enableMqtt()
             .enableWsDiscovery()
             .enableHttpRest()
+            .enableWebSocket()
             .build()
     }
 
