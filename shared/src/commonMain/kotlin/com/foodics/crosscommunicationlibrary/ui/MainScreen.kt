@@ -178,6 +178,7 @@ class MainScreen(
             ConnectionType.STOMP -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
             ConnectionType.TCP_SOCKET -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f)
             ConnectionType.MULTICAST -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
+            ConnectionType.SSE -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
             null -> MaterialTheme.colorScheme.outline
 
         }

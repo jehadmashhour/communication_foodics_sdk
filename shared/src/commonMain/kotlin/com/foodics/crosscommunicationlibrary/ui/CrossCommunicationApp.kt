@@ -9,7 +9,7 @@ import com.foodics.crosscommunicationlibrary.core.CommunicationSDK
 @Composable
 fun CrossCommunicationApp() {
 
-    val character = "A"
+    val character = "K"
     val deviceName = "Android $character"
     val identifier = "${character}01"
 
@@ -38,6 +38,7 @@ fun CrossCommunicationApp() {
             .enableStomp()
             .enableTcpSocket()
             .enableMulticast()
+            .enableSse()
             .build()
     }
 

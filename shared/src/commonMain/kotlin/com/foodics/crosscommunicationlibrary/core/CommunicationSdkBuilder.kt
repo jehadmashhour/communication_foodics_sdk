@@ -17,6 +17,7 @@ import com.foodics.crosscommunicationlibrary.coap.CoAPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.stomp.StompCommunicationChannel
 import com.foodics.crosscommunicationlibrary.tcp.TcpCommunicationChannel
 import com.foodics.crosscommunicationlibrary.multicast.MulticastCommunicationChannel
+import com.foodics.crosscommunicationlibrary.sse.SSECommunicationChannel
 import com.foodics.crosscommunicationlibrary.usb.UsbCommunicationChannel
 import com.foodics.crosscommunicationlibrary.websocket.WebSocketCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ws_discovery.WSDiscoveryCommunicationChannel
@@ -113,6 +114,10 @@ class CommunicationSdkBuilder {
 
     fun enableMulticast(): CommunicationSdkBuilder = apply {
         channels += MulticastCommunicationChannel()
+    }
+
+    fun enableSse(): CommunicationSdkBuilder = apply {
+        channels += SSECommunicationChannel()
     }
 
     fun build(): CommunicationSDK {

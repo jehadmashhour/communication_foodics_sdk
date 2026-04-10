@@ -20,6 +20,7 @@ enum class ConnectionType {
     COAP,
     STOMP,
     TCP_SOCKET,
-    MULTICAST
+    MULTICAST,
+    SSE
 
 }
