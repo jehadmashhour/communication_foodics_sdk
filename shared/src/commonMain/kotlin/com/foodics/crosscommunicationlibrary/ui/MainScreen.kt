@@ -172,6 +172,7 @@ class MainScreen(
             ConnectionType.WS_DISCOVERY -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
             ConnectionType.HTTP_REST -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
             ConnectionType.WEBSOCKET -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.7f)
+            ConnectionType.USB -> MaterialTheme.colorScheme.error.copy(alpha = 0.8f)
             null -> MaterialTheme.colorScheme.outline
 
         }

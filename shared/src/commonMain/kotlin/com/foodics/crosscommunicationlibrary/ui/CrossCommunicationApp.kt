@@ -17,9 +17,9 @@ fun CrossCommunicationApp() {
     val sdk = remember {
         CommunicationSDK.builder()
             .enableLan()
-//            .enableBluetooth()
-//            .enableWifiDirect()
-//            .enableWifiAware()
+            .enableBluetooth()
+            .enableWifiDirect()
+            .enableWifiAware()
             .enableGoogleNearby()
             .enableUdp()
             .enableCloud()
@@ -32,6 +32,7 @@ fun CrossCommunicationApp() {
             .enableWsDiscovery()
             .enableHttpRest()
             .enableWebSocket()
+            .enableUsb()
             .build()
     }
 

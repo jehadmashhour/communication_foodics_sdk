@@ -14,7 +14,7 @@ enum class ConnectionType {
     MQTT,
     WS_DISCOVERY,
     HTTP_REST,
-    WEBSOCKET
-//    USB
+    WEBSOCKET,
+    USB
 
 }

@@ -12,6 +12,7 @@ import com.foodics.crosscommunicationlibrary.nfc.NFCCommunicationChannel
 import com.foodics.crosscommunicationlibrary.uwb.UWBCommunicationChannel
 import com.foodics.crosscommunicationlibrary.webrtc.WebRTCCommunicationChannel
 import com.foodics.crosscommunicationlibrary.http.HttpRestCommunicationChannel
+import com.foodics.crosscommunicationlibrary.usb.UsbCommunicationChannel
 import com.foodics.crosscommunicationlibrary.websocket.WebSocketCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ws_discovery.WSDiscoveryCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_aware.WifiAwareCommunicationChannel
@@ -83,6 +84,10 @@ class CommunicationSdkBuilder {
 
     fun enableWebSocket(): CommunicationSdkBuilder = apply {
         channels += WebSocketCommunicationChannel()
+    }
+
+    fun enableUsb(): CommunicationSdkBuilder = apply {
+        channels += UsbCommunicationChannel()
     }
 
     fun build(): CommunicationSDK {
