@@ -16,6 +16,7 @@ enum class ConnectionType {
     HTTP_REST,
     WEBSOCKET,
     USB,
-    BLUETOOTH_CLASSIC
+    BLUETOOTH_CLASSIC,
+    COAP
 
 }
