@@ -12,7 +12,8 @@ enum class ConnectionType {
     UWB,
     NFC,
     MQTT,
-    WS_DISCOVERY
+    WS_DISCOVERY,
+    HTTP_REST
 //    USB
 
 }

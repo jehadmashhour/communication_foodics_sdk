@@ -170,6 +170,7 @@ class MainScreen(
             ConnectionType.NFC -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.9f)
             ConnectionType.MQTT -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.9f)
             ConnectionType.WS_DISCOVERY -> MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
+            ConnectionType.HTTP_REST -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.7f)
             null -> MaterialTheme.colorScheme.outline
 
         }
