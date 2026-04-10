@@ -176,6 +176,7 @@ class MainScreen(
             ConnectionType.BLUETOOTH_CLASSIC -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.85f)
             ConnectionType.COAP -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
             ConnectionType.STOMP -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
+            ConnectionType.TCP_SOCKET -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f)
             null -> MaterialTheme.colorScheme.outline
 
         }

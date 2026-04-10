@@ -35,6 +35,8 @@ fun CrossCommunicationApp() {
             .enableUsb()
             .enableBluetoothClassic()
             .enableCoap()
+            .enableStomp()
+            .enableTcpSocket()
             .build()
     }
 

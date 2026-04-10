@@ -18,6 +18,7 @@ enum class ConnectionType {
     USB,
     BLUETOOTH_CLASSIC,
     COAP,
-    STOMP
+    STOMP,
+    TCP_SOCKET
 
 }

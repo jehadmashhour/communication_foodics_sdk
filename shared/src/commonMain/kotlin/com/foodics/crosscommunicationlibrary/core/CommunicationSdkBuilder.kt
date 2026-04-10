@@ -15,6 +15,7 @@ import com.foodics.crosscommunicationlibrary.http.HttpRestCommunicationChannel
 import com.foodics.crosscommunicationlibrary.bluetooth_classic.BluetoothClassicCommunicationChannel
 import com.foodics.crosscommunicationlibrary.coap.CoAPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.stomp.StompCommunicationChannel
+import com.foodics.crosscommunicationlibrary.tcp.TcpCommunicationChannel
 import com.foodics.crosscommunicationlibrary.usb.UsbCommunicationChannel
 import com.foodics.crosscommunicationlibrary.websocket.WebSocketCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ws_discovery.WSDiscoveryCommunicationChannel
@@ -103,6 +104,10 @@ class CommunicationSdkBuilder {
 
     fun enableStomp(): CommunicationSdkBuilder = apply {
         channels += StompCommunicationChannel()
+    }
+
+    fun enableTcpSocket(): CommunicationSdkBuilder = apply {
+        channels += TcpCommunicationChannel()
     }
 
     fun build(): CommunicationSDK {
