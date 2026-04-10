@@ -19,6 +19,7 @@ enum class ConnectionType {
     BLUETOOTH_CLASSIC,
     COAP,
     STOMP,
-    TCP_SOCKET
+    TCP_SOCKET,
+    MULTICAST
 
 }

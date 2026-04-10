@@ -37,6 +37,7 @@ fun CrossCommunicationApp() {
             .enableCoap()
             .enableStomp()
             .enableTcpSocket()
+            .enableMulticast()
             .build()
     }
 
