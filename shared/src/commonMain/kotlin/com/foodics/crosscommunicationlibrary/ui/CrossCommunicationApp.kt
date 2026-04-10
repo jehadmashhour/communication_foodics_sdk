@@ -40,6 +40,7 @@ fun CrossCommunicationApp() {
             .enableMulticast()
             .enableSse()
             .enableAmqp()
+            .enableNats()
             .build()
     }
 

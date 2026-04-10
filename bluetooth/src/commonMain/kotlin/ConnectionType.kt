@@ -22,6 +22,7 @@ enum class ConnectionType {
     TCP_SOCKET,
     MULTICAST,
     SSE,
-    AMQP
+    AMQP,
+    NATS
 
 }

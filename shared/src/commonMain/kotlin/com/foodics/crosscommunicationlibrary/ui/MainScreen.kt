@@ -180,6 +180,7 @@ class MainScreen(
             ConnectionType.MULTICAST -> MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)
             ConnectionType.SSE -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
             ConnectionType.AMQP -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
+            ConnectionType.NATS -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
             null -> MaterialTheme.colorScheme.outline
 
         }

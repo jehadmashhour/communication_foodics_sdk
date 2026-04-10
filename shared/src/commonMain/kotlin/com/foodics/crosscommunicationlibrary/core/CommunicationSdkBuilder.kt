@@ -20,6 +20,8 @@ import com.foodics.crosscommunicationlibrary.multicast.MulticastCommunicationCha
 import com.foodics.crosscommunicationlibrary.sse.SSECommunicationChannel
 import com.foodics.crosscommunicationlibrary.amqp.AMQPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.amqp.AMQP_DEFAULT_BROKER
+import com.foodics.crosscommunicationlibrary.nats.NATSCommunicationChannel
+import com.foodics.crosscommunicationlibrary.nats.NATS_DEFAULT_BROKER
 import com.foodics.crosscommunicationlibrary.usb.UsbCommunicationChannel
 import com.foodics.crosscommunicationlibrary.websocket.WebSocketCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ws_discovery.WSDiscoveryCommunicationChannel
@@ -124,6 +126,10 @@ class CommunicationSdkBuilder {
 
     fun enableAmqp(brokerUrl: String = AMQP_DEFAULT_BROKER): CommunicationSdkBuilder = apply {
         channels += AMQPCommunicationChannel(brokerUrl)
+    }
+
+    fun enableNats(brokerUrl: String = NATS_DEFAULT_BROKER): CommunicationSdkBuilder = apply {
+        channels += NATSCommunicationChannel(brokerUrl)
     }
 
     fun build(): CommunicationSDK {
