@@ -21,6 +21,7 @@ enum class ConnectionType {
     STOMP,
     TCP_SOCKET,
     MULTICAST,
-    SSE
+    SSE,
+    AMQP
 
 }

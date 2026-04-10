@@ -18,6 +18,8 @@ import com.foodics.crosscommunicationlibrary.stomp.StompCommunicationChannel
 import com.foodics.crosscommunicationlibrary.tcp.TcpCommunicationChannel
 import com.foodics.crosscommunicationlibrary.multicast.MulticastCommunicationChannel
 import com.foodics.crosscommunicationlibrary.sse.SSECommunicationChannel
+import com.foodics.crosscommunicationlibrary.amqp.AMQPCommunicationChannel
+import com.foodics.crosscommunicationlibrary.amqp.AMQP_DEFAULT_BROKER
 import com.foodics.crosscommunicationlibrary.usb.UsbCommunicationChannel
 import com.foodics.crosscommunicationlibrary.websocket.WebSocketCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ws_discovery.WSDiscoveryCommunicationChannel
@@ -118,6 +120,10 @@ class CommunicationSdkBuilder {
 
     fun enableSse(): CommunicationSdkBuilder = apply {
         channels += SSECommunicationChannel()
+    }
+
+    fun enableAmqp(brokerUrl: String = AMQP_DEFAULT_BROKER): CommunicationSdkBuilder = apply {
+        channels += AMQPCommunicationChannel(brokerUrl)
     }
 
     fun build(): CommunicationSDK {

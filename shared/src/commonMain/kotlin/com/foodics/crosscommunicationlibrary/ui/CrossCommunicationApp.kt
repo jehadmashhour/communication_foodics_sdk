@@ -39,6 +39,7 @@ fun CrossCommunicationApp() {
             .enableTcpSocket()
             .enableMulticast()
             .enableSse()
+            .enableAmqp()
             .build()
     }
 
