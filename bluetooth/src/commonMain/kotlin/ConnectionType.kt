@@ -15,6 +15,7 @@ enum class ConnectionType {
     WS_DISCOVERY,
     HTTP_REST,
     WEBSOCKET,
-    USB
+    USB,
+    BLUETOOTH_CLASSIC
 
 }

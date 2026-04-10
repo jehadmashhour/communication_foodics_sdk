@@ -9,7 +9,7 @@ import com.foodics.crosscommunicationlibrary.core.CommunicationSDK
 @Composable
 fun CrossCommunicationApp() {
 
-    val character = "C"
+    val character = "A"
     val deviceName = "Android $character"
     val identifier = "${character}01"
 
@@ -33,6 +33,7 @@ fun CrossCommunicationApp() {
             .enableHttpRest()
             .enableWebSocket()
             .enableUsb()
+            .enableBluetoothClassic()
             .build()
     }
 

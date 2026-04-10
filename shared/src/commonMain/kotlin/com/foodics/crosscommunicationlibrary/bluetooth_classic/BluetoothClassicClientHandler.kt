@@ -1,0 +1,3 @@
+package com.foodics.crosscommunicationlibrary.bluetooth_classic
+
+expect class BluetoothClassicClientHandler()
