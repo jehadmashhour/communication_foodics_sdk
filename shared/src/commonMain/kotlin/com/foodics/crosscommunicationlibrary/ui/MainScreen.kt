@@ -181,6 +181,13 @@ class MainScreen(
             ConnectionType.SSE -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.4f)
             ConnectionType.AMQP -> MaterialTheme.colorScheme.tertiary.copy(alpha = 0.4f)
             ConnectionType.NATS -> MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+            ConnectionType.SERIAL,
+            ConnectionType.APPLE_MULTIPEER,
+            ConnectionType.MDNS,
+            ConnectionType.GRPC,
+            ConnectionType.REDIS,
+            ConnectionType.ZMQ,
+            ConnectionType.MODBUS_TCP -> MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
             null -> MaterialTheme.colorScheme.outline
 
         }

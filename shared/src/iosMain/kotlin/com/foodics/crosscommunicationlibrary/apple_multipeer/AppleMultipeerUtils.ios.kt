@@ -21,9 +21,9 @@ internal class MPCSessionDelegate : NSObject(), MCSessionDelegateProtocol {
     // Required: peer connection state changed
     override fun session(session: MCSession, peer: MCPeerID, didChangeState: MCSessionState) {
         when (didChangeState) {
-            MCSessionStateConnected    -> onConnected?.invoke(peer)
-            MCSessionStateNotConnected -> onDisconnected?.invoke(peer)
-            else                       -> Unit
+            MCSessionState.MCSessionStateConnected    -> onConnected?.invoke(peer)
+            MCSessionState.MCSessionStateNotConnected -> onDisconnected?.invoke(peer)
+            else                                      -> Unit
         }
     }
 

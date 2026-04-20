@@ -66,7 +66,7 @@ actual class AppleMultipeerServerHandler actual constructor() {
         val peers = connectedPeers.toList()
         if (peers.isEmpty()) { println("[MPCServer] No connected peers"); return }
         runCatching {
-            sess.sendData(data.toNSData(), toPeers = peers, with = MCSessionSendDataReliable, error = null)
+            sess.sendData(data.toNSData(), toPeers = peers, withMode = MCSessionSendDataMode.MCSessionSendDataReliable, error = null)
         }.onFailure { println("[MPCServer] Send error: ${it.message}") }
     }
 

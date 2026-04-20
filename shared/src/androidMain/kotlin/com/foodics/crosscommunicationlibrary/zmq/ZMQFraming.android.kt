@@ -40,11 +40,9 @@ internal fun BufferedInputStream.readZmtpFrame(): Pair<Boolean, ByteArray>? {
 internal fun zmtpHandshake(input: BufferedInputStream, output: OutputStream, asServer: Boolean): Boolean {
     return try {
         output.zmtpSend(zmtpGreeting(asServer))
-        readExactZmtp(input, 64) ?: return false   // peer greeting (ignored for NULL mechanism)
+        input.readExactZmtp(64) ?: return false   // peer greeting (ignored for NULL mechanism)
         output.zmtpSend(zmtpReadyFrame())
         val (isCmd, _) = input.readZmtpFrame() ?: return false
         isCmd // peer READY command received
     } catch (_: Exception) { false }
 }
-
-private fun readExactZmtp(input: BufferedInputStream, n: Int): ByteArray? = input.readExactZmtp(n)

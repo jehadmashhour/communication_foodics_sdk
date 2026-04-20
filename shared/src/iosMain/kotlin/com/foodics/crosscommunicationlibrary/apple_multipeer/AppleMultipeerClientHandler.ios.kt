@@ -65,7 +65,7 @@ actual class AppleMultipeerClientHandler actual constructor() {
 
         awaitClose {
             brw.delegate = null
-            withContext(Dispatchers.Main) { brw.stopBrowsingForPeers() }
+            brw.stopBrowsingForPeers()
             browser = null
             scanCallback = null
             discoveredPeers.clear()
@@ -115,7 +115,7 @@ actual class AppleMultipeerClientHandler actual constructor() {
         if (peers.isEmpty()) { println("[MPCClient] No connected peers"); return }
         @Suppress("UNCHECKED_CAST")
         runCatching {
-            sess.sendData(data.toNSData(), toPeers = peers as List<MCPeerID>, with = MCSessionSendDataReliable, error = null)
+            sess.sendData(data.toNSData(), toPeers = peers as List<MCPeerID>, withMode = MCSessionSendDataMode.MCSessionSendDataReliable, error = null)
         }.onFailure { println("[MPCClient] Send error: ${it.message}") }
     }
 
@@ -123,7 +123,7 @@ actual class AppleMultipeerClientHandler actual constructor() {
 
     // ── Disconnect ────────────────────────────────────────────────────────────
 
-    fun disconnect() {
+    suspend fun disconnect() {
         val brw = browser
         withContext(Dispatchers.Main) { brw?.stopBrowsingForPeers() }
         session?.disconnect()
