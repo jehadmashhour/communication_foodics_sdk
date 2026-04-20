@@ -22,11 +22,21 @@ import com.foodics.crosscommunicationlibrary.amqp.AMQPCommunicationChannel
 import com.foodics.crosscommunicationlibrary.amqp.AMQP_DEFAULT_BROKER
 import com.foodics.crosscommunicationlibrary.nats.NATSCommunicationChannel
 import com.foodics.crosscommunicationlibrary.nats.NATS_DEFAULT_BROKER
+import com.foodics.crosscommunicationlibrary.serial.SerialCommunicationChannel
+import com.foodics.crosscommunicationlibrary.serial.SERIAL_DEFAULT_BAUD_RATE
+import com.foodics.crosscommunicationlibrary.apple_multipeer.AppleMultipeerCommunicationChannel
+import com.foodics.crosscommunicationlibrary.mdns.MDNSCommunicationChannel
+import com.foodics.crosscommunicationlibrary.mdns.MDNS_DEFAULT_SERVICE_TYPE
+import com.foodics.crosscommunicationlibrary.grpc.GrpcCommunicationChannel
 import com.foodics.crosscommunicationlibrary.usb.UsbCommunicationChannel
 import com.foodics.crosscommunicationlibrary.websocket.WebSocketCommunicationChannel
 import com.foodics.crosscommunicationlibrary.ws_discovery.WSDiscoveryCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_aware.WifiAwareCommunicationChannel
 import com.foodics.crosscommunicationlibrary.wifi_direct.WifiDirectCommunicationChannel
+import com.foodics.crosscommunicationlibrary.redis.RedisCommunicationChannel
+import com.foodics.crosscommunicationlibrary.redis.REDIS_DEFAULT_BROKER
+import com.foodics.crosscommunicationlibrary.zmq.ZMQCommunicationChannel
+import com.foodics.crosscommunicationlibrary.modbus_tcp.ModbusCommunicationChannel
 
 class CommunicationSdkBuilder {
 
@@ -130,6 +140,39 @@ class CommunicationSdkBuilder {
 
     fun enableNats(brokerUrl: String = NATS_DEFAULT_BROKER): CommunicationSdkBuilder = apply {
         channels += NATSCommunicationChannel(brokerUrl)
+    }
+
+    fun enableSerial(
+        portPath: String = "",
+        baudRate: Int = SERIAL_DEFAULT_BAUD_RATE
+    ): CommunicationSdkBuilder = apply {
+        channels += SerialCommunicationChannel(portPath, baudRate)
+    }
+
+    fun enableAppleMultipeer(): CommunicationSdkBuilder = apply {
+        channels += AppleMultipeerCommunicationChannel()
+    }
+
+    fun enableMdns(
+        serviceType: String = MDNS_DEFAULT_SERVICE_TYPE
+    ): CommunicationSdkBuilder = apply {
+        channels += MDNSCommunicationChannel(serviceType)
+    }
+
+    fun enableGrpc(): CommunicationSdkBuilder = apply {
+        channels += GrpcCommunicationChannel()
+    }
+
+    fun enableRedis(brokerUrl: String = REDIS_DEFAULT_BROKER): CommunicationSdkBuilder = apply {
+        channels += RedisCommunicationChannel(brokerUrl)
+    }
+
+    fun enableZmq(): CommunicationSdkBuilder = apply {
+        channels += ZMQCommunicationChannel()
+    }
+
+    fun enableModbusTcp(): CommunicationSdkBuilder = apply {
+        channels += ModbusCommunicationChannel()
     }
 
     fun build(): CommunicationSDK {

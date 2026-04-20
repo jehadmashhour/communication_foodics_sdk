@@ -23,6 +23,13 @@ enum class ConnectionType {
     MULTICAST,
     SSE,
     AMQP,
-    NATS
+    NATS,
+    SERIAL,
+    APPLE_MULTIPEER,
+    MDNS,
+    GRPC,
+    REDIS,
+    ZMQ,
+    MODBUS_TCP
 
 }

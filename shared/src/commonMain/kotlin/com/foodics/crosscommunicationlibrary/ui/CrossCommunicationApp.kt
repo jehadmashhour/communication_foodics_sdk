@@ -41,6 +41,13 @@ fun CrossCommunicationApp() {
             .enableSse()
             .enableAmqp()
             .enableNats()
+            .enableSerial()
+            .enableAppleMultipeer()
+            .enableMdns()
+            .enableGrpc()
+            .enableRedis()
+            .enableZmq()
+            .enableModbusTcp()
             .build()
     }
 

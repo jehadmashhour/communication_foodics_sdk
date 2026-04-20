@@ -92,6 +92,25 @@ class CommunicationSDK(
         channels.first { it.connectionType == connectionType }
             .receiveDateFromServer()
 
+    fun scanDevices(connectionType: ConnectionType): Flow<List<IoTDevice>> =
+        channels.first { it.connectionType == connectionType }.scan()
+
+    suspend fun startServer(connectionType: ConnectionType, deviceName: String, identifier: String) {
+        channels.first { it.connectionType == connectionType }.startServer(deviceName, identifier)
+    }
+
+    suspend fun sendDataToServer(connectionType: ConnectionType, data: ByteArray) {
+        channels.first { it.connectionType == connectionType }
+            .sendDataToServer(data, WriteType.DEFAULT)
+    }
+
+    suspend fun sendDataToClient(connectionType: ConnectionType, data: ByteArray) {
+        channels.first { it.connectionType == connectionType }.sendDataToClient(data)
+    }
+
+    suspend fun receiveDataFromClient(connectionType: ConnectionType): Flow<ByteArray> =
+        channels.first { it.connectionType == connectionType }.receiveDataFromClient()
+
     suspend fun stopAllServers() =
         channels.forEach { it.stopServer() }
 
