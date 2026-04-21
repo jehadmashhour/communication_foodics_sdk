@@ -48,23 +48,25 @@ fun BluetoothSampleApp() {
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            var screen by remember { mutableStateOf(SampleScreen.ROLES) }
+            var screen by remember { mutableStateOf(BluetoothScreen.SELECT) }
             when (screen) {
-                SampleScreen.ROLES -> RoleSelectionScreen(
-                    onServer = { screen = SampleScreen.SERVER },
-                    onClient = { screen = SampleScreen.CLIENT }
+                BluetoothScreen.SELECT -> ModeSelectionScreen(
+                    onServer = { screen = BluetoothScreen.SERVER },
+                    onClient = { screen = BluetoothScreen.CLIENT },
+                    onDual   = { screen = BluetoothScreen.DUAL }
                 )
-                SampleScreen.SERVER -> ServerScreen(sdk) { screen = SampleScreen.ROLES }
-                SampleScreen.CLIENT -> ClientScreen(sdk) { screen = SampleScreen.ROLES }
+                BluetoothScreen.SERVER -> ServerScreen(sdk) { screen = BluetoothScreen.SELECT }
+                BluetoothScreen.CLIENT -> ClientScreen(sdk) { screen = BluetoothScreen.SELECT }
+                BluetoothScreen.DUAL   -> DualScreen(sdk)   { screen = BluetoothScreen.SELECT }
             }
         }
     }
 }
 
-private enum class SampleScreen { ROLES, SERVER, CLIENT }
+private enum class BluetoothScreen { SELECT, SERVER, CLIENT, DUAL }
 
 @Composable
-private fun RoleSelectionScreen(onServer: () -> Unit, onClient: () -> Unit) {
+private fun ModeSelectionScreen(onServer: () -> Unit, onClient: () -> Unit, onDual: () -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().padding(32.dp),
         verticalArrangement = Arrangement.Center,
@@ -73,11 +75,15 @@ private fun RoleSelectionScreen(onServer: () -> Unit, onClient: () -> Unit) {
         Text("Bluetooth SDK Sample", style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(48.dp))
         Button(onClick = onServer, modifier = Modifier.fillMaxWidth()) {
-            Text("Run as Server")
+            Text("Server")
         }
         Spacer(Modifier.height(16.dp))
         Button(onClick = onClient, modifier = Modifier.fillMaxWidth()) {
-            Text("Run as Client")
+            Text("Client")
+        }
+        Spacer(Modifier.height(16.dp))
+        Button(onClick = onDual, modifier = Modifier.fillMaxWidth()) {
+            Text("Server + Client")
         }
     }
 }
@@ -93,8 +99,6 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     var running by remember { mutableStateOf(false) }
     var connectedClients by remember { mutableStateOf(listOf<ConnectedClient>()) }
     val prefix = remember { devicePlatformPrefix() }
-    // Scan response budget: 31 bytes − 4 bytes ServiceData16 overhead = 27 bytes for the full
-    // advertised name ("$prefix-$deviceName"). Reserve prefix.length + 1 ("-") for the prefix.
     val maxNameLength = 27 - prefix.length - 1
 
     val startServer = rememberBluetoothEnableLauncher {
@@ -159,13 +163,6 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         }
 
         Text("Status: $status", style = MaterialTheme.typography.bodyMedium)
-        if (advertisingAs.isNotBlank()) {
-            Text(
-                "Advertising as: $advertisingAs",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
 
         OutlinedTextField(
             value = deviceName,
@@ -186,13 +183,8 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         if (running && connectedClients.isNotEmpty()) {
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(
-                        "Connected clients (${connectedClients.size})",
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                    connectedClients.forEach { client ->
-                        Text("• ${client.name}", style = MaterialTheme.typography.bodySmall)
-                    }
+                    Text("Connected clients (${connectedClients.size})", style = MaterialTheme.typography.labelLarge)
+                    connectedClients.forEach { Text("• ${it.name}", style = MaterialTheme.typography.bodySmall) }
                 }
             }
         }
@@ -208,7 +200,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
-                label = { Text("Message to client") },
+                label = { Text("Message to clients") },
                 modifier = Modifier.weight(1f),
                 enabled = running && connectedClients.isNotEmpty()
             )
@@ -307,13 +299,6 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         }
 
         Text("Status: $status", style = MaterialTheme.typography.bodyMedium)
-        if (myFullName.isNotBlank()) {
-            Text(
-                "Your name: $myFullName",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-        }
 
         if (!connected) {
             OutlinedTextField(
@@ -408,6 +393,317 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
             ) { Text("Disconnect") }
+        }
+    }
+}
+
+@Composable
+private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
+    val scope = rememberCoroutineScope()
+    val prefix = remember { devicePlatformPrefix() }
+    val maxNameLength = 27 - prefix.length - 1
+
+    var deviceName by remember { mutableStateOf("") }
+    var fullName by remember { mutableStateOf("") }
+
+    // Server state
+    var serverRunning by remember { mutableStateOf(false) }
+    var serverStatus by remember { mutableStateOf("Idle") }
+    var connectedClients by remember { mutableStateOf(listOf<ConnectedClient>()) }
+    var serverMessages by remember { mutableStateOf(listOf<String>()) }
+    var serverInput by remember { mutableStateOf("") }
+
+    // Client state
+    var scanning by remember { mutableStateOf(false) }
+    var connecting by remember { mutableStateOf(false) }
+    var clientConnected by remember { mutableStateOf(false) }
+    var clientStatus by remember { mutableStateOf("Idle") }
+    var devices by remember { mutableStateOf(listOf<DiscoveredDevice>()) }
+    var connectedServerName by remember { mutableStateOf("") }
+    var clientMessages by remember { mutableStateOf(listOf<String>()) }
+    var clientInput by remember { mutableStateOf("") }
+
+    val startServer = rememberBluetoothEnableLauncher {
+        scope.launch {
+            val name = "$prefix-${deviceName.trim()}"
+            fullName = name
+            serverStatus = "Starting..."
+            sdk.startServer(ConnectionType.BLUETOOTH, name, deviceIdentifier())
+            serverRunning = true
+            serverStatus = "Running — waiting for clients"
+        }
+    }
+
+    val startScan = rememberBluetoothEnableLauncher {
+        if (fullName.isBlank()) fullName = "$prefix-${deviceName.trim()}"
+        scanning = true
+        clientStatus = "Scanning..."
+    }
+
+    PlatformBackHandler {
+        scope.launch {
+            if (serverRunning) sdk.stopServer(ConnectionType.BLUETOOTH)
+            if (clientConnected) sdk.disconnectClient(ConnectionType.BLUETOOTH)
+        }
+        onBack()
+    }
+
+    LaunchedEffect(serverRunning) {
+        if (!serverRunning) return@LaunchedEffect
+        sdk.connectedClients(ConnectionType.BLUETOOTH).collect { clients ->
+            connectedClients = clients
+            serverStatus = when {
+                clients.isEmpty() -> "Running — waiting for clients"
+                clients.size == 1 -> "Connected: ${clients[0].name}"
+                else -> "Connected: ${clients.size} clients"
+            }
+        }
+    }
+
+    LaunchedEffect(serverRunning) {
+        if (!serverRunning) return@LaunchedEffect
+        try {
+            sdk.receiveMessagesFromClient(ConnectionType.BLUETOOTH).collect { msg ->
+                serverMessages = serverMessages + "${msg.client.name}: ${msg.data.decodeToString()}"
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            serverStatus = "Receive error: ${e.message}"
+        }
+    }
+
+    LaunchedEffect(scanning) {
+        if (!scanning) return@LaunchedEffect
+        sdk.scan().collect { found -> devices = found }
+    }
+
+    LaunchedEffect(clientConnected) {
+        if (!clientConnected) return@LaunchedEffect
+        try {
+            sdk.receiveFromServer(ConnectionType.BLUETOOTH).collect { data ->
+                clientMessages = clientMessages + "$connectedServerName: ${data.decodeToString()}"
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            clientStatus = "Disconnected: ${e.message}"
+            clientConnected = false
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
+            .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = {
+                scope.launch {
+                    if (serverRunning) sdk.stopServer(ConnectionType.BLUETOOTH)
+                    if (clientConnected) sdk.disconnectClient(ConnectionType.BLUETOOTH)
+                }
+                onBack()
+            }) { Text("Back") }
+            Spacer(Modifier.width(12.dp))
+            Text("Dual Mode", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.weight(1f))
+            if (fullName.isNotBlank()) {
+                Text(fullName, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+            }
+        }
+
+        OutlinedTextField(
+            value = deviceName,
+            onValueChange = { if (it.length <= maxNameLength) deviceName = it },
+            label = { Text("Device name (${deviceName.length}/$maxNameLength)") },
+            placeholder = { Text("e.g. MyPhone → $prefix-MyPhone") },
+            modifier = Modifier.fillMaxWidth(),
+            enabled = fullName.isBlank(),
+            singleLine = true
+        )
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { startServer() },
+                enabled = deviceName.isNotBlank() && !serverRunning,
+                modifier = Modifier.weight(1f)
+            ) { Text(if (serverRunning) "Server Running" else "Start Server") }
+
+            Button(
+                onClick = { startScan() },
+                enabled = deviceName.isNotBlank() && !scanning && !connecting && !clientConnected,
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(when {
+                    connecting -> "Connecting..."
+                    scanning -> "Scanning..."
+                    clientConnected -> "Connected"
+                    else -> "Scan & Connect"
+                })
+            }
+        }
+
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            item {
+                Text(
+                    "As Server",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text("Status: $serverStatus", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(4.dp))
+            }
+
+            if (serverRunning && connectedClients.isNotEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text("Connected clients (${connectedClients.size})", style = MaterialTheme.typography.labelMedium)
+                            connectedClients.forEach { Text("• ${it.name}", style = MaterialTheme.typography.bodySmall) }
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                }
+            }
+
+            items(serverMessages) { msg ->
+                Text("[Server] $msg", modifier = Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider()
+            }
+
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    OutlinedTextField(
+                        value = serverInput,
+                        onValueChange = { serverInput = it },
+                        label = { Text("To all clients") },
+                        modifier = Modifier.weight(1f),
+                        enabled = serverRunning && connectedClients.isNotEmpty(),
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = {
+                            val msg = serverInput.trim()
+                            serverInput = ""
+                            scope.launch {
+                                sdk.sendDataToClient(ConnectionType.BLUETOOTH, msg.encodeToByteArray())
+                                serverMessages = serverMessages + "Me→clients: $msg"
+                            }
+                        },
+                        enabled = serverRunning && connectedClients.isNotEmpty() && serverInput.isNotBlank()
+                    ) { Text("Send") }
+                }
+                if (serverRunning) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                sdk.stopServer(ConnectionType.BLUETOOTH)
+                                serverRunning = false
+                                connectedClients = emptyList()
+                                serverStatus = "Idle"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) { Text("Stop Server") }
+                }
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider()
+                Spacer(Modifier.height(8.dp))
+            }
+
+            item {
+                Text(
+                    "As Client",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.secondary
+                )
+                Text("Status: $clientStatus", style = MaterialTheme.typography.bodySmall)
+                Spacer(Modifier.height(4.dp))
+            }
+
+            if (scanning && !clientConnected) {
+                items(devices) { device ->
+                    Card(
+                        onClick = {
+                            scope.launch {
+                                try {
+                                    scanning = false
+                                    connecting = true
+                                    connectedServerName = device.name
+                                    clientStatus = "Connecting to ${device.name}..."
+                                    sdk.connectToServer(device, ConnectionType.BLUETOOTH)
+                                    val name = fullName.ifBlank { "$prefix-${deviceName.trim()}" }
+                                    sdk.sendDataToServer(
+                                        ConnectionType.BLUETOOTH,
+                                        "$HELLO_PREFIX$name".encodeToByteArray()
+                                    )
+                                    connecting = false
+                                    clientConnected = true
+                                    clientStatus = "Connected to ${device.name}"
+                                } catch (e: Exception) {
+                                    connecting = false
+                                    clientStatus = "Connection failed: ${e.message}"
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(device.name, style = MaterialTheme.typography.bodyLarge)
+                            Text(
+                                device.addressByType.entries.joinToString { "${it.key}: ${it.value}" },
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            items(clientMessages) { msg ->
+                Text("[Client] $msg", modifier = Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodySmall)
+                HorizontalDivider()
+            }
+
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    OutlinedTextField(
+                        value = clientInput,
+                        onValueChange = { clientInput = it },
+                        label = { Text("To server") },
+                        modifier = Modifier.weight(1f),
+                        enabled = clientConnected,
+                        singleLine = true
+                    )
+                    Button(
+                        onClick = {
+                            val msg = clientInput.trim()
+                            clientInput = ""
+                            scope.launch {
+                                sdk.sendDataToServer(ConnectionType.BLUETOOTH, msg.encodeToByteArray())
+                                clientMessages = clientMessages + "Me→server: $msg"
+                            }
+                        },
+                        enabled = clientConnected && clientInput.isNotBlank()
+                    ) { Text("Send") }
+                }
+                if (clientConnected) {
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                sdk.disconnectClient(ConnectionType.BLUETOOTH)
+                                clientConnected = false
+                                clientStatus = "Disconnected"
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                    ) { Text("Disconnect from Server") }
+                }
+            }
         }
     }
 }
