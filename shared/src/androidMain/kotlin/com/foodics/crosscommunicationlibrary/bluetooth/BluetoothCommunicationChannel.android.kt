@@ -1,5 +1,6 @@
 package com.foodics.crosscommunicationlibrary.bluetooth
 
+import android.content.Context
 import client.WriteType
 import com.foodics.crosscommunicationlibrary.AppContext
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
@@ -14,10 +15,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import scanner.IoTDevice
 
-actual class BluetoothCommunicationChannel actual constructor(
-    logger: CommunicationLogger?
+actual class BluetoothCommunicationChannel(
+    private val context: Context,
+    private val logger: CommunicationLogger?
 ) : CommunicationChannel {
-    private val context = AppContext.get()
+
+    actual constructor(logger: CommunicationLogger?) : this(AppContext.get(), logger)
+
     private val serverHandler = BluetoothServerHandler(context, logger)
     private val clientHandler = BluetoothClientHandler(context, logger)
 

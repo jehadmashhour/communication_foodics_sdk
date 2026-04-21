@@ -1,6 +1,6 @@
 package com.foodics.crosscommunicationlibrary.core
 
-import com.foodics.crosscommunicationlibrary.bluetooth.BluetoothCommunicationChannel
+import com.foodics.crosscommunicationlibrary.bluetooth.createBluetoothChannel
 import com.foodics.crosscommunicationlibrary.cloud.CloudCommunicationChannel
 import com.foodics.crosscommunicationlibrary.google_nearby.GoogleNearbyCommunicationChannel
 import com.foodics.crosscommunicationlibrary.lan.LanCommunicationChannel
@@ -58,7 +58,7 @@ class CommunicationSdkBuilder {
     }
 
     fun enableBluetooth(): CommunicationSdkBuilder = apply {
-        channels += BluetoothCommunicationChannel(logger)
+        channels += createBluetoothChannel(logger)
     }
 
     fun enableWifiDirect(): CommunicationSdkBuilder = apply {
