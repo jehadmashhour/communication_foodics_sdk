@@ -4,6 +4,7 @@ import client.WriteType
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
+import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import ConnectionQuality
 import ConnectionType
 import handler.BluetoothClientHandler
@@ -12,9 +13,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import scanner.IoTDevice
 
-actual class BluetoothCommunicationChannel : CommunicationChannel {
-    private val serverHandler = BluetoothServerHandler()
-    private val clientHandler = BluetoothClientHandler()
+actual class BluetoothCommunicationChannel actual constructor(
+    logger: CommunicationLogger?
+) : CommunicationChannel {
+    private val serverHandler = BluetoothServerHandler(logger)
+    private val clientHandler = BluetoothClientHandler(logger)
 
     actual override val connectionType: ConnectionType = ConnectionType.BLUETOOTH
 

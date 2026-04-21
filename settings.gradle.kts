@@ -4,7 +4,13 @@ pluginManagement {
         google()
         gradlePluginPortal()
         mavenCentral()
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        maven {
+            url = uri("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+            content {
+                includeGroupByRegex("org\\.jetbrains.*")
+                includeGroupByRegex("androidx\\.compose.*")
+            }
+        }
     }
 }
 
@@ -14,7 +20,13 @@ dependencyResolutionManagement {
         mavenCentral()
         maven("https://jitpack.io")
         maven("https://repo.eclipse.org/content/repositories/paho-releases/")
-        maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+        maven {
+            url = uri("https://maven.pkg.jetbrains.space/public/p/compose/dev")
+            content {
+                includeGroupByRegex("org\\.jetbrains.*")
+                includeGroupByRegex("androidx\\.compose.*")
+            }
+        }
     }
 
 //    versionCatalogs {
@@ -30,3 +42,4 @@ include(":androidApp")
 include(":androidSample")
 include(":bluetooth")
 include(":lan")
+include(":logger")

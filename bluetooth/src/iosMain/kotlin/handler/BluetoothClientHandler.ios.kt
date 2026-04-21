@@ -9,6 +9,13 @@ import client.ClientCharacteristic
 import client.IOSClientWrapper
 import client.IOSClient
 import client.WriteType
+import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
+import com.foodics.crosscommunicationlibrary.logger.debug
+import com.foodics.crosscommunicationlibrary.logger.error
+import com.foodics.crosscommunicationlibrary.logger.info
+import com.foodics.crosscommunicationlibrary.logger.warn
+import rssiToDistance
+import rssiToSignalLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -22,12 +29,14 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import platform.Foundation.*
-import rssiToDistance
-import rssiToSignalLevel
 import scanner.IoTDevice
 import scanner.Scanner
 
-actual class BluetoothClientHandler {
+private const val LOG_TITLE = "BLE_CLIENT"
+
+actual class BluetoothClientHandler(
+    private val logger: CommunicationLogger?
+) {
 
     private val iosClientWrapper = IOSClientWrapper(IOSClient())
     private val client: Client = Client(iosClientWrapper)
@@ -40,31 +49,59 @@ actual class BluetoothClientHandler {
     private var bytesSent = 0L
     private var bytesReceived = 0L
 
-    fun scan(): Flow<List<IoTDevice>> = scanner.scan()
+    fun scan(): Flow<List<IoTDevice>> {
+        logger?.info(LOG_TITLE, "BLE scan started")
+        return scanner.scan().onEach { devices ->
+            if (devices.isNotEmpty()) {
+                logger?.debug(
+                    LOG_TITLE, "BLE devices found",
+                    mapOf("count" to devices.size, "names" to devices.joinToString { it.name })
+                )
+            }
+        }
+    }
 
     suspend fun connect(device: IoTDevice) {
+        logger?.info(LOG_TITLE, "Connecting to BLE device", mapOf("device_name" to device.name, "device_address" to device.address))
         client.connect(device, scope)
 
         val service = client.discoverServices().findService(SERVICE_UUID)
-            ?: throw Exception("Bluetooth service $SERVICE_UUID not found on ${device.name}")
+            ?: run {
+                logger?.error(LOG_TITLE, "BLE service not found on ${device.name}", extra = mapOf("service_uuid" to SERVICE_UUID))
+                throw Exception("Bluetooth service $SERVICE_UUID not found on ${device.name}")
+            }
 
         clientToServerChar = service.findCharacteristic(CHAR_FROM_CLIENT_UUID)
-            ?: throw Exception("Characteristic $CHAR_FROM_CLIENT_UUID not found on ${device.name}")
+            ?: run {
+                logger?.error(LOG_TITLE, "Characteristic not found", extra = mapOf("char_uuid" to CHAR_FROM_CLIENT_UUID))
+                throw Exception("Characteristic $CHAR_FROM_CLIENT_UUID not found on ${device.name}")
+            }
 
         clientFromServerChar = service.findCharacteristic(CHAR_TO_CLIENT_UUID)
-            ?: throw Exception("Characteristic $CHAR_TO_CLIENT_UUID not found on ${device.name}")
+            ?: run {
+                logger?.error(LOG_TITLE, "Characteristic not found", extra = mapOf("char_uuid" to CHAR_TO_CLIENT_UUID))
+                throw Exception("Characteristic $CHAR_TO_CLIENT_UUID not found on ${device.name}")
+            }
 
         iosClientWrapper.value.startRssiPolling(scope)
+        logger?.info(LOG_TITLE, "Connected to BLE server", mapOf("device_name" to device.name))
     }
 
     suspend fun sendToServer(data: ByteArray, writeType: WriteType) {
         clientToServerChar.write(data, writeType)
         bytesSent += data.size
+        logger?.debug(LOG_TITLE, "Sent data to server", mapOf("bytes" to data.size))
     }
 
     suspend fun receiveFromServer(): Flow<ByteArray> = merge(
-        clientFromServerChar.getNotifications().onEach { bytesReceived += it.size },
-        iosClientWrapper.value.disconnectEvent.map { throw Exception("Server disconnected") }
+        clientFromServerChar.getNotifications().onEach {
+            bytesReceived += it.size
+            logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to it.size))
+        },
+        iosClientWrapper.value.disconnectEvent.map {
+            logger?.warn(LOG_TITLE, "Server disconnected unexpectedly")
+            throw Exception("Server disconnected")
+        }
     )
 
     fun connectionQuality(): Flow<ConnectionQuality> = flow {
@@ -78,15 +115,24 @@ actual class BluetoothClientHandler {
             bytesSent = 0L
             bytesReceived = 0L
             windowStart = now
-            emit(
-                ConnectionQuality(
-                    rssiDbm = rssi,
-                    signalLevel = rssiToSignalLevel(rssi),
-                    estimatedDistanceMeters = rssiToDistance(rssi),
-                    mtuBytes = iosClientWrapper.value.mtu(),
-                    throughputBytesPerSecond = throughput
+            val quality = ConnectionQuality(
+                rssiDbm = rssi,
+                signalLevel = rssiToSignalLevel(rssi),
+                estimatedDistanceMeters = rssiToDistance(rssi),
+                mtuBytes = iosClientWrapper.value.mtu(),
+                throughputBytesPerSecond = throughput
+            )
+            logger?.debug(
+                LOG_TITLE, "Connection quality",
+                mapOf(
+                    "rssi_dbm" to quality.rssiDbm,
+                    "signal_level" to quality.signalLevel.name,
+                    "distance_m" to quality.estimatedDistanceMeters,
+                    "mtu_bytes" to quality.mtuBytes,
+                    "throughput_bps" to quality.throughputBytesPerSecond
                 )
             )
+            emit(quality)
         }
     }.flowOn(Dispatchers.IO)
 
@@ -96,5 +142,6 @@ actual class BluetoothClientHandler {
         bytesSent = 0L
         bytesReceived = 0L
         client.disconnect()
+        logger?.info(LOG_TITLE, "Disconnected from BLE server")
     }
 }

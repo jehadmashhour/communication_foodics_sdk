@@ -4,12 +4,13 @@ import client.WriteType
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
+import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import ConnectionQuality
 import ConnectionType
 import kotlinx.coroutines.flow.Flow
 import scanner.IoTDevice
 
-expect class BluetoothCommunicationChannel() : CommunicationChannel {
+expect class BluetoothCommunicationChannel(logger: CommunicationLogger?) : CommunicationChannel {
     override val connectionType: ConnectionType
     override suspend fun startServer(deviceName: String, identifier: String)
     override fun scan(): Flow<List<IoTDevice>>

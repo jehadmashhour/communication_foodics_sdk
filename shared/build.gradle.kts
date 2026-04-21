@@ -47,6 +47,7 @@ kotlin {
             dependencies {
                 implementation(project(":bluetooth"))
                 implementation(project(":lan"))
+                implementation(project(":logger"))
                 implementation(libs.kmm.uuid)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(compose.runtime)
@@ -124,4 +125,5 @@ android {
         sourceCompatibility = JavaVersion.VERSION_1_8
         targetCompatibility = JavaVersion.VERSION_1_8
     }
+    buildFeatures { buildConfig = true }
 }

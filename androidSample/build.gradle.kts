@@ -18,6 +18,13 @@ android {
         versionName = "1.0"
     }
 
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
@@ -41,6 +48,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

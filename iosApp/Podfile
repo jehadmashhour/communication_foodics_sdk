@@ -8,6 +8,8 @@ target 'iosApp' do
   pod 'Ably', '~> 1.2'
   pod 'GoogleWebRTC', '~> 1.1'
   pod 'CocoaMQTT', '~> 2.1'
+  pod 'DatadogCore', '~> 2.14'
+  pod 'DatadogLogs', '~> 2.14'
 end
 
 post_install do |installer|

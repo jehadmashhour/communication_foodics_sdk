@@ -38,6 +38,7 @@ uwb = "1.0.0-alpha08"
 pahomqtt = "1.2.5"
 concurrentFutures = "1.1.0"
 guava = "33.0.0-android"
+datadog = "2.14.0"
 
 
 [libraries]
@@ -102,6 +103,8 @@ androidx-core-uwb = { module = "androidx.core.uwb:uwb", version.ref = "uwb" }
 paho-mqtt = { module = "org.eclipse.paho:org.eclipse.paho.client.mqttv3", version.ref = "pahomqtt" }
 androidx-concurrent-futures = { module = "androidx.concurrent:concurrent-futures", version.ref = "concurrentFutures" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
+datadog-android-core = { module = "com.datadoghq:dd-sdk-android-core", version.ref = "datadog" }
+datadog-android-logs = { module = "com.datadoghq:dd-sdk-android-logs", version.ref = "datadog" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

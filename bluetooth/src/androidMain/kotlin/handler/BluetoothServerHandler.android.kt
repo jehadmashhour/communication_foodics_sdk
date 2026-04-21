@@ -11,6 +11,11 @@ import advertisement.Advertiser
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
+import com.foodics.crosscommunicationlibrary.logger.debug
+import com.foodics.crosscommunicationlibrary.logger.error
+import com.foodics.crosscommunicationlibrary.logger.info
+import com.foodics.crosscommunicationlibrary.logger.warn
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -27,8 +32,13 @@ import kotlinx.coroutines.flow.onEach
 import scanner.IoTDevice
 import server.*
 
+private const val LOG_TITLE = "BLE_SERVER"
+
 @SuppressLint("MissingPermission")
-actual class BluetoothServerHandler(private val context: Context) {
+actual class BluetoothServerHandler(
+    private val context: Context,
+    private val logger: CommunicationLogger?
+) {
 
     private val server: Server = Server(context)
     private val advertiser: Advertiser = Advertiser(context)
@@ -43,6 +53,7 @@ actual class BluetoothServerHandler(private val context: Context) {
         stop()
         delay(300)
         Log.i(TAG, "Starting BLE server with name=$deviceName identifier=$identifier")
+        logger?.info(LOG_TITLE, "Starting BLE server", mapOf("device_name" to deviceName, "identifier" to identifier))
 
         server.startServer(listOf(createServiceConfig()), scope)
 
@@ -54,22 +65,41 @@ actual class BluetoothServerHandler(private val context: Context) {
                     }
                 }
                 val activeIds = map.keys.mapNotNull { it.id ?: it.address }.toSet()
+                val droppedClients = _connectedClients.value.keys - activeIds
+                droppedClients.forEach { id ->
+                    val name = _connectedClients.value[id]?.name ?: id
+                    logger?.info(LOG_TITLE, "Client disconnected", mapOf("client_id" to id, "client_name" to name))
+                    Log.i(TAG, "Client disconnected: $name ($id)")
+                }
                 _connectedClients.value = _connectedClients.value.filterKeys { it in activeIds }
                 toClientChars.keys.retainAll(activeIds)
             }
             .launchIn(scope)
 
         advertiser.advertise(AdvertisementSettings(name = deviceName, uuid = ADVERTISER_UUID, identifier = identifier))
+        logger?.info(LOG_TITLE, "BLE advertising started", mapOf("device_name" to deviceName, "identifier" to identifier))
         Log.i(TAG, "BLE Advertising started with: $deviceName / $identifier")
     }
 
     private fun setupProfile(clientId: String, profile: ServerProfile) {
         val service = profile.findService(SERVICE_UUID)
-            ?: run { Log.e(TAG, "Service $SERVICE_UUID not found"); return }
+            ?: run {
+                Log.e(TAG, "Service $SERVICE_UUID not found")
+                logger?.error(LOG_TITLE, "BLE service not found during profile setup", extra = mapOf("service_uuid" to SERVICE_UUID))
+                return
+            }
         val fromClientChar = service.findCharacteristic(CHAR_FROM_CLIENT_UUID)
-            ?: run { Log.e(TAG, "Characteristic FROM_CLIENT not found"); return }
+            ?: run {
+                Log.e(TAG, "Characteristic FROM_CLIENT not found")
+                logger?.error(LOG_TITLE, "FROM_CLIENT characteristic not found")
+                return
+            }
         val toClientChar = service.findCharacteristic(CHAR_TO_CLIENT_UUID)
-            ?: run { Log.e(TAG, "Characteristic TO_CLIENT not found"); return }
+            ?: run {
+                Log.e(TAG, "Characteristic TO_CLIENT not found")
+                logger?.error(LOG_TITLE, "TO_CLIENT characteristic not found")
+                return
+            }
         toClientChars[clientId] = toClientChar
 
         fromClientChar.value
@@ -78,10 +108,12 @@ actual class BluetoothServerHandler(private val context: Context) {
                 if (text.startsWith(HELLO_PREFIX)) {
                     val name = text.removePrefix(HELLO_PREFIX).trim()
                     _connectedClients.value = _connectedClients.value + (clientId to BleClient(clientId, name))
+                    logger?.info(LOG_TITLE, "Client connected", mapOf("client_id" to clientId, "client_name" to name))
                     Log.i(TAG, "Client $clientId identified as: $name")
                 } else {
                     val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)
                     _messageFlow.tryEmit(BleMessage(client, data))
+                    logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to client.name, "bytes" to data.size))
                     Log.i(TAG, "Message from ${client.name}: ${String(data)}")
                 }
             }
@@ -89,6 +121,7 @@ actual class BluetoothServerHandler(private val context: Context) {
     }
 
     suspend fun sendToClient(data: ByteArray) {
+        logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("client_count" to toClientChars.size, "bytes" to data.size))
         Log.i(TAG, "Sending to ${toClientChars.size} client(s): ${String(data)}")
         toClientChars.values.forEach { it.setValue(data) }
     }
@@ -112,8 +145,10 @@ actual class BluetoothServerHandler(private val context: Context) {
             initializedProfiles.clear()
             toClientChars.clear()
             _connectedClients.value = emptyMap()
+            logger?.info(LOG_TITLE, "BLE server stopped")
             Log.i(TAG, "Stopped BLE server & advertiser")
         } catch (e: Exception) {
+            logger?.error(LOG_TITLE, "Error stopping BLE server", e)
             Log.e(TAG, "Error stopping BLE server", e)
         }
     }

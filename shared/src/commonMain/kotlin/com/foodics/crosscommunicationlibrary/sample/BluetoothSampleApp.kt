@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.foodics.crosscommunicationlibrary.core.CommunicationSDK
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import com.foodics.crosscommunicationlibrary.core.DiscoveredDevice
+import com.foodics.crosscommunicationlibrary.logger.LogAttributes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -44,6 +45,7 @@ import kotlinx.coroutines.launch
 fun BluetoothSampleApp() {
     val sdk = remember {
         CommunicationSDK.builder()
+            .enableLogging(sampleDatadogConfig(), LogAttributes())
             .enableBluetooth()
             .build()
     }

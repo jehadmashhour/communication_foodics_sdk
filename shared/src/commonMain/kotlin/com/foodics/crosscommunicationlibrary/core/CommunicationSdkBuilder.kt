@@ -37,17 +37,28 @@ import com.foodics.crosscommunicationlibrary.redis.RedisCommunicationChannel
 import com.foodics.crosscommunicationlibrary.redis.REDIS_DEFAULT_BROKER
 import com.foodics.crosscommunicationlibrary.zmq.ZMQCommunicationChannel
 import com.foodics.crosscommunicationlibrary.modbus_tcp.ModbusCommunicationChannel
+import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
+import com.foodics.crosscommunicationlibrary.logger.DatadogConfig
+import com.foodics.crosscommunicationlibrary.logger.LogAttributes
 
 class CommunicationSdkBuilder {
 
     private val channels = mutableListOf<CommunicationChannel>()
+    private var logger: CommunicationLogger? = null
+
+    fun enableLogging(
+        datadogConfig: DatadogConfig,
+        attributes: LogAttributes
+    ): CommunicationSdkBuilder = apply {
+        logger = CommunicationLogger(datadogConfig, attributes)
+    }
 
     fun enableLan(): CommunicationSdkBuilder = apply {
         channels += LanCommunicationChannel()
     }
 
     fun enableBluetooth(): CommunicationSdkBuilder = apply {
-        channels += BluetoothCommunicationChannel()
+        channels += BluetoothCommunicationChannel(logger)
     }
 
     fun enableWifiDirect(): CommunicationSdkBuilder = apply {
@@ -179,6 +190,6 @@ class CommunicationSdkBuilder {
         require(channels.isNotEmpty()) {
             "At least one communication channel must be enabled"
         }
-        return CommunicationSDK(channels.toList())
+        return CommunicationSDK(channels.toList(), logger)
     }
 }
