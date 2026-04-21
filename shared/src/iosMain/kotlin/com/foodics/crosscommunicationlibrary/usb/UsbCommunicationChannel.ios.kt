@@ -27,7 +27,7 @@ actual class UsbCommunicationChannel actual constructor() :
     ) {
     }
 
-    actual override suspend fun receiveDateFromServer(): Flow<ByteArray> = emptyFlow()
+    actual override suspend fun receiveDataFromServer(): Flow<ByteArray> = emptyFlow()
 
     actual override suspend fun sendDataToClient(data: ByteArray) {
     }

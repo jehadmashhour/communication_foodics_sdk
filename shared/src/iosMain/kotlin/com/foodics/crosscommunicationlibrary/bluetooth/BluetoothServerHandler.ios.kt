@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,7 +32,7 @@ actual class BluetoothServerHandler() {
     private val iosServerWrapper = IOSServerWrapper(iosServer)
     private val advertiser: Advertiser = Advertiser(iosServerWrapper)
     private val server: Server = Server(iosServerWrapper)
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _messageFlow = MutableSharedFlow<ClientMessage>(extraBufferCapacity = 64)
     private var receivedWritesJob: Job? = null
@@ -74,6 +75,8 @@ actual class BluetoothServerHandler() {
     fun clientConnectionState(): Flow<Boolean> = iosServer.clientNames.map { it.isNotEmpty() }
 
     suspend fun stop() {
+        scope.cancel()
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         receivedWritesJob?.cancel()
         receivedWritesJob = null
         advertiser.stop()

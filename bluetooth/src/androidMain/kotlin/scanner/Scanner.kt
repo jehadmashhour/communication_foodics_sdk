@@ -58,8 +58,6 @@ actual class Scanner(private val context: Context) {
                 // Device name to display (full serviceData or fallback to device name/address)
                 val deviceName = nameFromServiceData ?: nameFromName ?: ""
 
-                println("Scanned Device_in -> name=$deviceName, address=${scanResult.device.address}, key=$key")
-
                 val device = IoTDevice(scanResult.device, deviceName, ConnectionType.BLUETOOTH, key)
                 devicesMap[key] = device to System.currentTimeMillis()
             }

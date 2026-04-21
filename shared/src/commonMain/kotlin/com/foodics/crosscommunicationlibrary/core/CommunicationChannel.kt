@@ -14,7 +14,7 @@ interface CommunicationChannel {
     suspend fun connectToServer(device: IoTDevice)
 
     suspend fun sendDataToServer(data: ByteArray, writeType: WriteType = WriteType.DEFAULT)
-    suspend fun receiveDateFromServer(): Flow<ByteArray>
+    suspend fun receiveDataFromServer(): Flow<ByteArray>
 
     suspend fun sendDataToClient(data: ByteArray)
     suspend fun receiveDataFromClient(): Flow<ByteArray>

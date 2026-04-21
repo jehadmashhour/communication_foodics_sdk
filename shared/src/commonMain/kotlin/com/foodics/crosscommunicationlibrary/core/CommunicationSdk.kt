@@ -87,7 +87,7 @@ class CommunicationSDK(
     }
 
     suspend fun receiveFromServer(connectionType: ConnectionType): Flow<ByteArray> =
-        channels.first { it.connectionType == connectionType }.receiveDateFromServer()
+        channels.first { it.connectionType == connectionType }.receiveDataFromServer()
 
     suspend fun sendDataToClient(connectionType: ConnectionType, data: ByteArray) {
         channels.first { it.connectionType == connectionType }.sendDataToClient(data)

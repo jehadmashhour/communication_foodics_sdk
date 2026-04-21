@@ -63,26 +63,23 @@ actual class Server(private val context: Context) {
         scope: CoroutineScope,
     ) {
 
-        val config = services.map {
-            val characteristics = it.characteristics.map {
-                val descritptors = it.descriptors.map {
-                    it.uuid
+        val config = services.map { serviceConfig ->
+            val characteristics = serviceConfig.characteristics.map { charConfig ->
+                val descriptors = charConfig.descriptors.map { descConfig ->
                     ServerBleGattDescriptorConfig(
-                        it.uuid,
-                        it.permissions.toNativePermissions()
+                        descConfig.uuid,
+                        descConfig.permissions.toNativePermissions()
                     )
                 }
-
                 ServerBleGattCharacteristicConfig(
-                    it.uuid,
-                    it.properties.toNativeProperties(),
-                    it.permissions.toNativePermissions(),
-                    descritptors
+                    charConfig.uuid,
+                    charConfig.properties.toNativeProperties(),
+                    charConfig.permissions.toNativePermissions(),
+                    descriptors
                 )
             }
-
             ServerBleGattServiceConfig(
-                it.uuid,
+                serviceConfig.uuid,
                 ServerBleGattServiceType.SERVICE_TYPE_PRIMARY,
                 characteristics
             )

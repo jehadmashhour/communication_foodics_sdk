@@ -13,7 +13,7 @@ expect class GoogleNearbyCommunicationChannel() : CommunicationChannel {
     override fun scan(): Flow<List<IoTDevice>>
     override suspend fun connectToServer(device: IoTDevice)
     override suspend fun sendDataToServer(data: ByteArray, writeType: WriteType)
-    override suspend fun receiveDateFromServer(): Flow<ByteArray>
+    override suspend fun receiveDataFromServer(): Flow<ByteArray>
     override suspend fun sendDataToClient(data: ByteArray)
     override suspend fun receiveDataFromClient(): Flow<ByteArray>
     override suspend fun stopServer()

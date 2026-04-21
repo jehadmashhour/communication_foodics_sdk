@@ -14,7 +14,7 @@ actual class AppleMultipeerCommunicationChannel actual constructor() : Communica
     actual override fun scan(): Flow<List<IoTDevice>> = flowOf(emptyList())
     actual override suspend fun connectToServer(device: IoTDevice) {}
     actual override suspend fun sendDataToServer(data: ByteArray, writeType: WriteType) {}
-    actual override suspend fun receiveDateFromServer(): Flow<ByteArray> = emptyFlow()
+    actual override suspend fun receiveDataFromServer(): Flow<ByteArray> = emptyFlow()
     actual override suspend fun sendDataToClient(data: ByteArray) {}
     actual override suspend fun receiveDataFromClient(): Flow<ByteArray> = emptyFlow()
     actual override suspend fun stopServer() {}

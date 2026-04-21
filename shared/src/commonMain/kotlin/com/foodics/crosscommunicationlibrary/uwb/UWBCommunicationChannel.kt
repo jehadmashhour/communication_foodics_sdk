@@ -13,7 +13,7 @@ import scanner.IoTDevice
  *              announce messages carry OOB ranging parameters.
  * Ranging    : Hardware UWB session (Android = FiRa/Jetpack UWB,
  *              iOS = NearbyInteraction).
- * Data flow  : receiveDataFromClient / receiveDateFromServer emit 12-byte
+ * Data flow  : receiveDataFromClient / receiveDataFromServer emit 12-byte
  *              ranging results: [distance_float | azimuth_float | elevation_float]
  *              all big-endian IEEE-754, NaN when the value is unavailable.
  *
@@ -27,7 +27,7 @@ expect class UWBCommunicationChannel() : CommunicationChannel {
     override fun scan(): Flow<List<IoTDevice>>
     override suspend fun connectToServer(device: IoTDevice)
     override suspend fun sendDataToServer(data: ByteArray, writeType: WriteType)
-    override suspend fun receiveDateFromServer(): Flow<ByteArray>
+    override suspend fun receiveDataFromServer(): Flow<ByteArray>
     override suspend fun sendDataToClient(data: ByteArray)
     override suspend fun receiveDataFromClient(): Flow<ByteArray>
     override suspend fun stopServer()

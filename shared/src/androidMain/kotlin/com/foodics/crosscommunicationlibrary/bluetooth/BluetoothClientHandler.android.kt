@@ -9,7 +9,10 @@ import android.util.Log
 import client.Client
 import client.ClientCharacteristic
 import client.WriteType
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -20,7 +23,7 @@ actual class BluetoothClientHandler(context: Context) {
 
     private val client: Client = Client(context)
     private val scanner: Scanner = Scanner(context)
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var clientToServerChar: ClientCharacteristic
     private lateinit var clientFromServerChar: ClientCharacteristic
@@ -63,6 +66,8 @@ actual class BluetoothClientHandler(context: Context) {
     )
 
     suspend fun disconnect() {
+        scope.cancel()
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         client.disconnect()
         Log.i(TAG, "Disconnected from server")
     }

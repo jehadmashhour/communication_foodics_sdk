@@ -15,6 +15,7 @@ import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -31,9 +32,9 @@ actual class BluetoothServerHandler(context: Context) {
 
     private val server: Server = Server(context)
     private val advertiser: Advertiser = Advertiser(context)
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private lateinit var toClientChar: ServerCharacteristic
+    private val toClientChars = mutableMapOf<String, ServerCharacteristic>()
 
     private val initializedProfiles = mutableSetOf<ServerProfile>()
     private val _connectedClients = MutableStateFlow<Map<String, ConnectedClient>>(emptyMap())
@@ -59,6 +60,7 @@ actual class BluetoothServerHandler(context: Context) {
                 }
                 val activeIds = map.keys.mapNotNull { it.id ?: it.address }.toSet()
                 _connectedClients.value = _connectedClients.value.filterKeys { it in activeIds }
+                toClientChars.keys.retainAll(activeIds)
             }
             .launchIn(scope)
 
@@ -80,8 +82,9 @@ actual class BluetoothServerHandler(context: Context) {
         val fromClientChar = service.findCharacteristic(CHAR_FROM_CLIENT_UUID)
             ?: run { Log.e(TAG, "Characteristic FROM_CLIENT not found"); return }
 
-        toClientChar = service.findCharacteristic(CHAR_TO_CLIENT_UUID)
+        val toClientChar = service.findCharacteristic(CHAR_TO_CLIENT_UUID)
             ?: run { Log.e(TAG, "Characteristic TO_CLIENT not found"); return }
+        toClientChars[clientId] = toClientChar
 
         fromClientChar.value
             .onEach { data ->
@@ -100,8 +103,8 @@ actual class BluetoothServerHandler(context: Context) {
     }
 
     suspend fun sendToClient(data: ByteArray) {
-        Log.i(TAG, "Sending to client: ${String(data)}")
-        toClientChar.setValue(data)
+        Log.i(TAG, "Sending to ${toClientChars.size} client(s): ${String(data)}")
+        toClientChars.values.forEach { it.setValue(data) }
     }
 
     fun receiveFromClient(): Flow<ByteArray> = _messageFlow.map { it.data }
@@ -116,9 +119,12 @@ actual class BluetoothServerHandler(context: Context) {
 
     suspend fun stop() {
         try {
+            scope.cancel()
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             advertiser.stop()
             server.stopServer()
             initializedProfiles.clear()
+            toClientChars.clear()
             _connectedClients.value = emptyMap()
             Log.i(TAG, "Stopped BLE server & advertiser")
         } catch (e: Exception) {

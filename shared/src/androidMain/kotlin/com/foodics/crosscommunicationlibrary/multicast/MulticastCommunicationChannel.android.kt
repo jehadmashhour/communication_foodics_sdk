@@ -24,7 +24,7 @@ actual class MulticastCommunicationChannel : CommunicationChannel {
     actual override suspend fun sendDataToServer(data: ByteArray, writeType: WriteType) =
         clientHandler.sendToServer(data, writeType)
 
-    actual override suspend fun receiveDateFromServer(): Flow<ByteArray> =
+    actual override suspend fun receiveDataFromServer(): Flow<ByteArray> =
         clientHandler.receiveFromServer()
 
     actual override suspend fun sendDataToClient(data: ByteArray) =

@@ -83,7 +83,6 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
             CBCentralManagerScanOptionAllowDuplicatesKey to true
         )
 
-        println("⚡️ Starting iOS BLE Scan...")
         manager.scanForPeripheralsWithServices(null, options)
 
         // Cleanup stale devices every second (same as Android)
@@ -97,7 +96,6 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
                     val lastSeen = entry.value.second
 
                     if (now - lastSeen > 5000) {
-                        println("Removing stale device: ${entry.key}")
                         iterator.remove()
                     }
                 }
@@ -108,7 +106,6 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         }
 
         awaitClose {
-            println("Stopping iOS BLE Scan")
             manager.stopScan()
             cleanupJob.cancel()
         }
@@ -343,8 +340,6 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
             connectionType = ConnectionType.BLUETOOTH,
             deviceName = finalName
         )
-
-        println("Scanned Device_in -> name=$finalName, key=$finalIdentifier, rssi=$RSSI, advertisementData=$advertisementData")
 
         val now = (NSDate().timeIntervalSince1970 * 1000).toLong()
 

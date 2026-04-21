@@ -28,7 +28,7 @@ actual class WifiAwareCommunicationChannel : CommunicationChannel {
         writeType: WriteType
     ) = clientHandler.sendToServer(data)
 
-    actual override suspend fun receiveDateFromServer() =
+    actual override suspend fun receiveDataFromServer() =
         clientHandler.receiveFromServer()
 
     actual override suspend fun sendDataToClient(data: ByteArray) =

@@ -60,13 +60,8 @@ actual data class IoTDevice(
 
 
 sealed interface NativeDevice {
-
     val name: String
     val address: String
-
-    companion object {
-        var counter: Int = 0
-    }
 }
 
 data class PeripheralDevice(internal val peripheral: CBPeripheral) : NativeDevice {

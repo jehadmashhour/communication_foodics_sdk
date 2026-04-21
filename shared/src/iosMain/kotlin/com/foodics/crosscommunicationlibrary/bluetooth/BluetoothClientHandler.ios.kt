@@ -8,7 +8,11 @@ import client.ClientCharacteristic
 import client.IOSClient
 import client.IOSClientWrapper
 import client.WriteType
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.IO
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
@@ -20,7 +24,7 @@ actual class BluetoothClientHandler() {
     private val iosClientWrapper = IOSClientWrapper(IOSClient())
     private val client: Client = Client(iosClientWrapper)
     private val scanner: Scanner = Scanner(iosClientWrapper)
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var clientToServerChar: ClientCharacteristic
     private lateinit var clientFromServerChar: ClientCharacteristic
@@ -63,6 +67,8 @@ actual class BluetoothClientHandler() {
     )
 
     suspend fun disconnect() {
+        scope.cancel()
+        scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         client.disconnect()
       //  Log.i(TAG, "Disconnected from server")
     }

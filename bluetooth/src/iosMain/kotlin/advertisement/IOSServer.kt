@@ -214,24 +214,20 @@ class IOSServer(
 
     suspend fun startServer(services: List<BleServerServiceConfig>) {
         bleState.first { it == CBCentralManagerStatePoweredOn }
-        val iosServices = services.map {
-            val characteristics = it.characteristics.map {
-                val descriptors = it.descriptors.map {
-                    CBMutableDescriptor(it.uuid.toCBUUID(), null)
+        val iosServices = services.map { serviceConfig ->
+            val characteristics = serviceConfig.characteristics.map { charConfig ->
+                val descriptors = charConfig.descriptors.map { descConfig ->
+                    CBMutableDescriptor(descConfig.uuid.toCBUUID(), null)
                 }
                 CBMutableCharacteristic(
-                    it.uuid.toCBUUID(),
-                    it.properties.toDomain(),
+                    charConfig.uuid.toCBUUID(),
+                    charConfig.properties.toDomain(),
                     null,
-                    it.permissions.toDomain()
-                ).also {
-                    it.setDescriptors(descriptors)
-                }
+                    charConfig.permissions.toDomain()
+                ).also { char -> char.setDescriptors(descriptors) }
             }
-
-            CBMutableService(it.uuid.toCBUUID(), true).also {
-                it.setCharacteristics(characteristics)
-            }
+            CBMutableService(serviceConfig.uuid.toCBUUID(), true)
+                .also { svc -> svc.setCharacteristics(characteristics) }
         }
 
         iosServices.forEach {

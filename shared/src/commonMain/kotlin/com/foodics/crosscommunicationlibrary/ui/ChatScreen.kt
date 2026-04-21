@@ -28,7 +28,7 @@ class ChatScreen(
 //        LaunchedEffect(Unit) {
 //            if (role == DeviceRole.CLIENT) {
 //                coroutineScope.launch {
-//                    sdk.receiveDateFromServer().collect { data ->
+//                    sdk.receiveDataFromServer().collect { data ->
 //                        messages = messages + "Server: ${data.decodeToString()}"
 //                    }
 //                }
