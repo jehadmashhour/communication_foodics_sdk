@@ -1,4 +1,4 @@
-package com.foodics.crosscommunicationlibrary.bluetooth
+package handler
 
 import BluetoothConstants.ADVERTISER_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
@@ -8,8 +8,6 @@ import advertisement.AdvertisementSettings
 import advertisement.Advertiser
 import advertisement.IOSServer
 import advertisement.IOSServerWrapper
-import com.foodics.crosscommunicationlibrary.core.ClientMessage
-import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -26,7 +24,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import server.*
 
-actual class BluetoothServerHandler() {
+actual class BluetoothServerHandler {
 
     private val iosServer = IOSServer(NotificationsRecords())
     private val iosServerWrapper = IOSServerWrapper(iosServer)
@@ -34,31 +32,24 @@ actual class BluetoothServerHandler() {
     private val server: Server = Server(iosServerWrapper)
     private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
-    private val _messageFlow = MutableSharedFlow<ClientMessage>(extraBufferCapacity = 64)
+    private val _messageFlow = MutableSharedFlow<BleMessage>(extraBufferCapacity = 64)
     private var receivedWritesJob: Job? = null
 
     suspend fun start(deviceName: String, identifier: String) {
         stop()
         delay(300)
 
-        val serviceConfig = createServiceConfig()
-        server.startServer(listOf(serviceConfig), scope)
+        server.startServer(listOf(createServiceConfig()), scope)
 
         receivedWritesJob = iosServer.receivedWrites
             .filter { (_, charUuid, _) -> charUuid == CHAR_FROM_CLIENT_UUID }
             .onEach { (centralId, _, data) ->
                 val name = iosServer.clientNames.value[centralId] ?: centralId
-                _messageFlow.tryEmit(ClientMessage(ConnectedClient(centralId, name), data))
+                _messageFlow.tryEmit(BleMessage(BleClient(centralId, name), data))
             }
             .launchIn(scope)
 
-        advertiser.advertise(
-            AdvertisementSettings(
-                name = deviceName,
-                identifier = identifier,
-                uuid = ADVERTISER_UUID
-            )
-        )
+        advertiser.advertise(AdvertisementSettings(name = deviceName, identifier = identifier, uuid = ADVERTISER_UUID))
     }
 
     suspend fun sendToClient(data: ByteArray) {
@@ -67,10 +58,10 @@ actual class BluetoothServerHandler() {
 
     fun receiveFromClient(): Flow<ByteArray> = _messageFlow.map { it.data }
 
-    fun receiveMessagesFromClient(): Flow<ClientMessage> = _messageFlow.asSharedFlow()
+    fun receiveMessagesFromClient(): Flow<BleMessage> = _messageFlow.asSharedFlow()
 
-    fun connectedClients(): Flow<List<ConnectedClient>> = iosServer.clientNames
-        .map { map -> map.entries.map { (id, name) -> ConnectedClient(id, name) } }
+    fun connectedClients(): Flow<List<BleClient>> = iosServer.clientNames
+        .map { map -> map.entries.map { (id, name) -> BleClient(id, name) } }
 
     fun clientConnectionState(): Flow<Boolean> = iosServer.clientNames.map { it.isNotEmpty() }
 

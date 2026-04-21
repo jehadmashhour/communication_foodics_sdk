@@ -152,6 +152,10 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             }) { Text("Back") }
             Spacer(Modifier.width(12.dp))
             Text("Server", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.weight(1f))
+            if (advertisingAs.isNotBlank()) {
+                Text(advertisingAs, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+            }
         }
 
         Text("Status: $status", style = MaterialTheme.typography.bodyMedium)
@@ -248,6 +252,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     var myFullName by remember { mutableStateOf("") }
     var serverName by remember { mutableStateOf("Server") }
     var scanning by remember { mutableStateOf(false) }
+    var connecting by remember { mutableStateOf(false) }
     var connected by remember { mutableStateOf(false) }
     val prefix = remember { devicePlatformPrefix() }
 
@@ -295,6 +300,10 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             }) { Text("Back") }
             Spacer(Modifier.width(12.dp))
             Text("Client", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.weight(1f))
+            if (myFullName.isNotBlank()) {
+                Text(myFullName, style = MaterialTheme.typography.bodyMedium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Bold))
+            }
         }
 
         Text("Status: $status", style = MaterialTheme.typography.bodyMedium)
@@ -313,15 +322,15 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                 label = { Text("Your name") },
                 placeholder = { Text("e.g. MyPhone → $prefix-MyPhone") },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !scanning,
+                enabled = !scanning && !connecting,
                 singleLine = true
             )
 
             Button(
                 onClick = { startScan() },
-                enabled = !scanning && clientName.isNotBlank(),
+                enabled = !scanning && !connecting && clientName.isNotBlank(),
                 modifier = Modifier.fillMaxWidth()
-            ) { Text(if (scanning) "Scanning..." else "Scan for Servers") }
+            ) { Text(if (connecting) "Connecting..." else if (scanning) "Scanning..." else "Scan for Servers") }
 
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(devices) { device ->
@@ -330,6 +339,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                             scope.launch {
                                 try {
                                     scanning = false
+                                    connecting = true
                                     serverName = device.name
                                     status = "Connecting to ${device.name}..."
                                     sdk.connectToServer(device, ConnectionType.BLUETOOTH)
@@ -338,9 +348,11 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                                         ConnectionType.BLUETOOTH,
                                         "$HELLO_PREFIX$fullName".encodeToByteArray()
                                     )
+                                    connecting = false
                                     connected = true
                                     status = "Connected to ${device.name}"
                                 } catch (e: Exception) {
+                                    connecting = false
                                     status = "Connection failed: ${e.message}"
                                 }
                             }

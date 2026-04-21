@@ -4,8 +4,6 @@ import client.WriteType
 import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import ConnectionType
-import com.foodics.crosscommunicationlibrary.bluetooth.BluetoothClientHandler
-import com.foodics.crosscommunicationlibrary.bluetooth.BluetoothServerHandler
 import scanner.IoTDevice
 
 //android code

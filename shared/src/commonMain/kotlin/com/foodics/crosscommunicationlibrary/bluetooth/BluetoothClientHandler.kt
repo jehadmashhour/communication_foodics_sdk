@@ -1,3 +1,0 @@
-package com.foodics.crosscommunicationlibrary.bluetooth
-
-expect class BluetoothClientHandler

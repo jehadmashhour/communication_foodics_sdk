@@ -1,9 +1,10 @@
-package com.foodics.crosscommunicationlibrary.bluetooth
+package handler
 
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.SERVICE_UUID
 import BluetoothConstants.TAG
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import client.Client
@@ -19,7 +20,8 @@ import kotlinx.coroutines.flow.merge
 import scanner.IoTDevice
 import scanner.Scanner
 
-actual class BluetoothClientHandler(context: Context) {
+@SuppressLint("MissingPermission")
+actual class BluetoothClientHandler(private val context: Context) {
 
     private val client: Client = Client(context)
     private val scanner: Scanner = Scanner(context)
@@ -32,25 +34,16 @@ actual class BluetoothClientHandler(context: Context) {
 
     suspend fun connect(device: IoTDevice) {
         Log.i(TAG, "Attempting to connect to device: ${device.name} (${device.address})")
-
         client.connect(device, scope)
 
         val service = client.discoverServices().findService(SERVICE_UUID)
-            ?: throw Exception(
-                "Bluetooth service with UUID $SERVICE_UUID not found on device ${device.name}"
-            )
+            ?: throw Exception("Bluetooth service $SERVICE_UUID not found on ${device.name}")
 
         clientToServerChar = service.findCharacteristic(CHAR_FROM_CLIENT_UUID)
-            ?: throw Exception(
-                "Required 'to-server' characteristic (${CHAR_FROM_CLIENT_UUID}) not found " +
-                        "in service $SERVICE_UUID on device ${device.name}"
-            )
+            ?: throw Exception("Characteristic $CHAR_FROM_CLIENT_UUID not found on ${device.name}")
 
         clientFromServerChar = service.findCharacteristic(CHAR_TO_CLIENT_UUID)
-            ?: throw Exception(
-                "Required 'from-server' characteristic (${CHAR_TO_CLIENT_UUID}) not found " +
-                        "in service $SERVICE_UUID on device ${device.name}"
-            )
+            ?: throw Exception("Characteristic $CHAR_TO_CLIENT_UUID not found on ${device.name}")
 
         Log.i(TAG, "Connected successfully to ${device.name}")
     }
