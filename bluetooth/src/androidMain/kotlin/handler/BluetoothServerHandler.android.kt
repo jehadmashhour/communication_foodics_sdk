@@ -1,6 +1,7 @@
 package handler
 
 import BluetoothConstants.ADVERTISER_UUID
+import BluetoothConstants.CCCD_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.HELLO_PREFIX
@@ -166,7 +167,12 @@ actual class BluetoothServerHandler(
                 uuid = CHAR_TO_CLIENT_UUID,
                 properties = listOf(GattProperty.READ, GattProperty.NOTIFY),
                 permissions = listOf(GattPermission.READ, GattPermission.WRITE),
-                descriptors = emptyList()
+                descriptors = listOf(
+                    BleServerDescriptorConfig(
+                        uuid = CCCD_UUID,
+                        permissions = listOf(GattPermission.READ, GattPermission.WRITE)
+                    )
+                )
             )
         )
     )

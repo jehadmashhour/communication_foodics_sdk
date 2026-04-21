@@ -1,14 +1,14 @@
 package com.foodics.crosscommunicationlibrary.lan
 
 import client.WriteType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import ConnectionType
 import scanner.IoTDevice
 
 //android code
 actual class LanCommunicationChannel : CommunicationChannel {
-    private val context = AndroidAppContextProvider.context
+    private val context = AppContext.get()
     private val serverHandler = LanServerHandler(context)
     private val clientHandler = LanClientHandler(context)
 

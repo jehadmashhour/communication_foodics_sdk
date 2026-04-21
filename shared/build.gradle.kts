@@ -39,6 +39,7 @@ kotlin {
         framework {
             baseName = "shared"
             isStatic = true
+            export(project(":logger"))
         }
     }
 
@@ -47,7 +48,7 @@ kotlin {
             dependencies {
                 implementation(project(":bluetooth"))
                 implementation(project(":lan"))
-                implementation(project(":logger"))
+                api(project(":logger"))
                 implementation(libs.kmm.uuid)
                 implementation(libs.kotlinx.coroutines.core)
                 implementation(compose.runtime)

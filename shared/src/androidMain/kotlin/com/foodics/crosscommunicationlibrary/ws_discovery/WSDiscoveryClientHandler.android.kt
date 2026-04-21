@@ -5,7 +5,7 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import client.WriteType
 import ConnectionType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -25,7 +25,7 @@ actual class WSDiscoveryClientHandler {
     private var multicastLock: WifiManager.MulticastLock? = null
 
     fun scan(): Flow<List<IoTDevice>> = channelFlow {
-        val wifiMgr = AndroidAppContextProvider.context
+        val wifiMgr = AppContext.get()
             .getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifiMgr.createMulticastLock("$TAG.lock")
         lock.setReferenceCounted(true)

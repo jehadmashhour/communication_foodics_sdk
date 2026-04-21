@@ -10,7 +10,7 @@ import android.os.Build
 import android.util.Log
 import client.WriteType
 import ConnectionType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -42,7 +42,7 @@ actual class UsbClientHandler {
      * Emits immediately with the current list, then updates on plug / unplug events.
      */
     fun scan(): Flow<List<IoTDevice>> = channelFlow {
-        val ctx = AndroidAppContextProvider.context
+        val ctx = AppContext.get()
         val usbManager = ctx.getSystemService(Context.USB_SERVICE) as UsbManager
 
         fun snapshot(): List<IoTDevice> = usbManager.deviceList.values.map { d ->
@@ -78,7 +78,7 @@ actual class UsbClientHandler {
 
     suspend fun connect(device: IoTDevice): Unit = withContext(Dispatchers.IO) {
         disconnect()
-        val ctx = AndroidAppContextProvider.context
+        val ctx = AppContext.get()
         val usbManager = ctx.getSystemService(Context.USB_SERVICE) as UsbManager
         val usbDevice = usbManager.deviceList[device.address]
             ?: run { Log.w(TAG, "USB device not found: ${device.address}"); return@withContext }

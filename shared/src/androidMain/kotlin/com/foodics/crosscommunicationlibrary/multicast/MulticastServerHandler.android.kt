@@ -3,7 +3,7 @@ package com.foodics.crosscommunicationlibrary.multicast
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -27,7 +27,7 @@ actual class MulticastServerHandler {
         stop()
 
         // Android WiFi driver filters multicast by default; we need a lock to receive it.
-        val wifiManager = AndroidAppContextProvider.context
+        val wifiManager = AppContext.get()
             .getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifiManager.createMulticastLock("FoodicsMulticast").apply {
             setReferenceCounted(false)

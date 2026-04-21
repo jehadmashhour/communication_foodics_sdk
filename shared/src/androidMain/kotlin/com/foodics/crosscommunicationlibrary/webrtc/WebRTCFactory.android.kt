@@ -1,6 +1,6 @@
 package com.foodics.crosscommunicationlibrary.webrtc
 
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import org.webrtc.PeerConnectionFactory
 
 internal object WebRTCFactory {
@@ -12,7 +12,7 @@ internal object WebRTCFactory {
             if (initialized) return
             PeerConnectionFactory.initialize(
                 PeerConnectionFactory.InitializationOptions
-                    .builder(AndroidAppContextProvider.context)
+                    .builder(AppContext.get())
                     .createInitializationOptions()
             )
             initialized = true

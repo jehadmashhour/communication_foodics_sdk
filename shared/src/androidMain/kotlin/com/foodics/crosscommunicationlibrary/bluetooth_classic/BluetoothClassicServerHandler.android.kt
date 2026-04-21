@@ -6,7 +6,7 @@ import android.bluetooth.BluetoothSocket
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow

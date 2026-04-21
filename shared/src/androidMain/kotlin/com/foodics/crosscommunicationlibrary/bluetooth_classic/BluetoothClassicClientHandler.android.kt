@@ -12,7 +12,7 @@ import android.os.Build
 import android.util.Log
 import client.WriteType
 import ConnectionType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -37,7 +37,7 @@ actual class BluetoothClassicClientHandler {
      * Discovery is restarted automatically when each 12-second scan cycle finishes.
      */
     fun scan(): Flow<List<IoTDevice>> = channelFlow {
-        val ctx = AndroidAppContextProvider.context
+        val ctx = AppContext.get()
         val adapter = getAdapter() ?: run { Log.e(TAG, "Bluetooth not available"); return@channelFlow }
 
         val devicesMap = mutableMapOf<String, IoTDevice>()

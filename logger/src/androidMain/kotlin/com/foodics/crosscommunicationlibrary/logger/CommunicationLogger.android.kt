@@ -51,7 +51,7 @@ actual class CommunicationLogger actual constructor(
     ) {
         val perLogAttrs: Map<String, Any?> = buildMap {
             put(ATTRIBUTE_LOG_ID, uuid4().toString())
-            put(ATTRIBUTE_LOG_TITLE, title)
+            put(ATTRIBUTE_LOG_TITLE, "$title | $message")
             put(ATTRIBUTE_LOG_TYPE, level.name)
             putAll(extra)
         }

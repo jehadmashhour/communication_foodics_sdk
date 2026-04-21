@@ -5,7 +5,7 @@ import android.net.wifi.WifiManager
 import android.util.Log
 import client.WriteType
 import ConnectionType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -29,7 +29,7 @@ actual class MulticastClientHandler {
     // ── Scan ──────────────────────────────────────────────────────────────────
 
     fun scan(): Flow<List<IoTDevice>> = channelFlow {
-        val wifiManager = AndroidAppContextProvider.context
+        val wifiManager = AppContext.get()
             .getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifiManager.createMulticastLock("FoodicsMulticastScan").apply {
             setReferenceCounted(false); acquire()
@@ -92,7 +92,7 @@ actual class MulticastClientHandler {
 
     suspend fun connect(device: IoTDevice): Unit = withContext(Dispatchers.IO) {
         disconnect()
-        val wifiManager = AndroidAppContextProvider.context
+        val wifiManager = AppContext.get()
             .getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifiManager.createMulticastLock("FoodicsMulticastData").apply {
             setReferenceCounted(false); acquire()

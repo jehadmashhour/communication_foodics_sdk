@@ -5,7 +5,7 @@ import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.Build
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import scanner.IoTDevice
 import java.util.UUID
 
@@ -13,7 +13,7 @@ import java.util.UUID
 internal val SPP_UUID: UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
 
 internal fun getAdapter(): BluetoothAdapter? {
-    val mgr = AndroidAppContextProvider.context
+    val mgr = AppContext.get()
         .getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager
     return mgr?.adapter
 }

@@ -1,6 +1,6 @@
 package com.foodics.crosscommunicationlibrary.sample
 
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import com.foodics.crosscommunicationlibrary.BuildConfig
 import com.foodics.crosscommunicationlibrary.logger.DatadogConfig
 
@@ -9,5 +9,5 @@ internal actual fun sampleDatadogConfig(): DatadogConfig = DatadogConfig(
     env = "dev",
     variant = if (BuildConfig.DEBUG) "debug" else "release",
     service = "CrossCommunicationLibrary-Android",
-    platformContext = AndroidAppContextProvider.context
+    platformContext = AppContext.get()
 )

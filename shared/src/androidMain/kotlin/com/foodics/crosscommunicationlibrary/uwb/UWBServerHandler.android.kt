@@ -8,7 +8,7 @@ import androidx.core.uwb.RangingParameters
 import androidx.core.uwb.RangingResult
 import androidx.core.uwb.UwbDevice
 import androidx.core.uwb.UwbManager
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -48,7 +48,7 @@ actual class UWBServerHandler {
             return@withContext
         }
 
-        val context = AndroidAppContextProvider.context
+        val context = AppContext.get()
         val ip      = uwbGetLocalIpAndroid()
 
         // Acquire multicast lock so UDP multicast works on Android Wi-Fi

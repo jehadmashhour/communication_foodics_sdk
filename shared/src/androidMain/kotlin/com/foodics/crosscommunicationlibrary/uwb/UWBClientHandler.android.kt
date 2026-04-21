@@ -11,7 +11,7 @@ import androidx.core.uwb.UwbDevice
 import androidx.core.uwb.UwbManager
 import client.WriteType
 import ConnectionType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -43,7 +43,7 @@ actual class UWBClientHandler {
     // ── Scan ──────────────────────────────────────────────────────────────────
 
     fun scan(): Flow<List<IoTDevice>> = channelFlow {
-        val context = AndroidAppContextProvider.context
+        val context = AppContext.get()
         val wifiMgr = context.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val lock = wifiMgr.createMulticastLock("$TAG.lock").also { it.setReferenceCounted(true); it.acquire() }
         multicastLock = lock
@@ -112,7 +112,7 @@ actual class UWBClientHandler {
             return@withContext
         }
 
-        val uwbManager = runCatching { UwbManager.createInstance(AndroidAppContextProvider.context) }
+        val uwbManager = runCatching { UwbManager.createInstance(AppContext.get()) }
             .getOrElse { Log.e(TAG, "UWB unavailable: ${it.message}"); return@withContext }
 
         scope.launch {

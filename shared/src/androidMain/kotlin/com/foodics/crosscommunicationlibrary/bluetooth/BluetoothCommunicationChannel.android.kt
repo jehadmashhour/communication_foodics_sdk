@@ -1,7 +1,7 @@
 package com.foodics.crosscommunicationlibrary.bluetooth
 
 import client.WriteType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
@@ -17,7 +17,7 @@ import scanner.IoTDevice
 actual class BluetoothCommunicationChannel actual constructor(
     logger: CommunicationLogger?
 ) : CommunicationChannel {
-    private val context = AndroidAppContextProvider.context
+    private val context = AppContext.get()
     private val serverHandler = BluetoothServerHandler(context, logger)
     private val clientHandler = BluetoothClientHandler(context, logger)
 

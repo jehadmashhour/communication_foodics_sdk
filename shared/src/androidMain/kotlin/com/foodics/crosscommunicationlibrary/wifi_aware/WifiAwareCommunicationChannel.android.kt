@@ -2,13 +2,13 @@ package com.foodics.crosscommunicationlibrary.wifi_aware
 
 import ConnectionType
 import client.WriteType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import scanner.IoTDevice
 
 actual class WifiAwareCommunicationChannel : CommunicationChannel {
 
-    private val context = AndroidAppContextProvider.context
+    private val context = AppContext.get()
 
     private val serverHandler = WifiAwareServerHandler(context)
     private val clientHandler = WifiAwareClientHandler(context)

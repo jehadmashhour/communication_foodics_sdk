@@ -3,7 +3,7 @@ package com.foodics.crosscommunicationlibrary.ssdp
 import android.content.Context
 import android.net.wifi.WifiManager
 import android.util.Log
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -35,7 +35,7 @@ actual class SSDPServerHandler {
             val ip = getLocalIpAndroid()
 
             // Acquire Wi-Fi multicast lock (required on Android)
-            val wifiMgr = AndroidAppContextProvider.context
+            val wifiMgr = AppContext.get()
                 .getSystemService(Context.WIFI_SERVICE) as WifiManager
             val lock = wifiMgr.createMulticastLock("$TAG.lock")
             lock.setReferenceCounted(true)

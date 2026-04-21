@@ -45,6 +45,8 @@ import scanner.IoTDevice
 import scanner.PeripheralDevice
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeout
 import platform.Foundation.NSData
 
 private const val TAG = "BLE-TAG"
@@ -139,12 +141,23 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
 
         bleState.first { it == CBCentralManagerStatePoweredOn }
 
-        return suspendCoroutine { continuation ->
-            onDeviceConnected = {
-                onDeviceConnected = null
-                continuation.resume(Unit)
+        // Stop scanning before connecting — scan and connect compete for the same radio,
+        // which causes intermittent connection failures with Android peripherals.
+        manager.stopScan()
+        delay(200)
+
+        withTimeout(10_000) {
+            suspendCancellableCoroutine { continuation ->
+                onDeviceConnected = {
+                    onDeviceConnected = null
+                    if (continuation.isActive) continuation.resume(Unit)
+                }
+                continuation.invokeOnCancellation {
+                    onDeviceConnected = null
+                    manager.cancelPeripheralConnection(peripheral)
+                }
+                manager.connectPeripheral(peripheral, null)
             }
-            manager.connectPeripheral(peripheral, null)
         }
     }
 

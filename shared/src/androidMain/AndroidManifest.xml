@@ -7,6 +7,10 @@
     <uses-feature android:name="android.hardware.nfc.hce" android:required="false" />
 
     <application>
+        <provider
+            android:name="com.foodics.crosscommunicationlibrary.CrossCommunicationInitializer"
+            android:authorities="${applicationId}.crosscommunication.init"
+            android:exported="false" />
         <!--
             NFC Host Card Emulation service.
             Emulates an NFC Type 4 NDEF tag so a tapping client (Android/iOS)

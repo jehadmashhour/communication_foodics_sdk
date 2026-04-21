@@ -23,7 +23,7 @@ actual class CommunicationLogger actual constructor(
         val allAttrs: Map<String, Any?> = buildMap {
             putAll(baseAttrs)
             put(ATTRIBUTE_LOG_ID, uuid4().toString())
-            put(ATTRIBUTE_LOG_TITLE, title)
+            put(ATTRIBUTE_LOG_TITLE, "$title | $message")
             put(ATTRIBUTE_LOG_TYPE, level.name)
             putAll(extra)
             throwable?.let { put("error_message", it.message ?: "Unknown error") }

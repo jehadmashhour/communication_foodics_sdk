@@ -1,7 +1,7 @@
 package com.foodics.crosscommunicationlibrary.google_nearby
 
 import client.WriteType
-import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.AppContext
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import ConnectionType
 import scanner.IoTDevice
@@ -9,7 +9,7 @@ import scanner.IoTDevice
 //androidMain
 actual class GoogleNearbyCommunicationChannel : CommunicationChannel {
 
-    private val context = AndroidAppContextProvider.context
+    private val context = AppContext.get()
     private val serverHandler = GoogleNearbyServerHandler(context)
     private val clientHandler = GoogleNearbyClientHandler(context)
 

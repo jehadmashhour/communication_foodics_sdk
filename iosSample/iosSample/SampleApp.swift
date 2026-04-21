@@ -17,7 +17,6 @@ struct SampleApp: App {
     }
 
     private func setupDatadogLogging() {
-        let env = "dev"
         #if DEBUG
         let variant = "debug"
         #else
@@ -27,9 +26,8 @@ struct SampleApp: App {
         Datadog.initialize(
             with: Datadog.Configuration(
                 clientToken: "pub4f51a761a700a9caf8c15aa221bc4dd4",
-                env: env,
-                service: "CrossCommunicationLibrary-IOS",
-                variant: variant
+                env: "dev",
+                service: "CrossCommunicationLibrary-IOS"
             ),
             trackingConsent: .granted
         )
@@ -39,9 +37,23 @@ struct SampleApp: App {
             name: "CrossCommunicationLibrary",
             networkInfoEnabled: true
         ))
+        ddLogger.addAttribute(forKey: "variant", value: variant)
 
         DatadogBridge.shared.logSink = { level, message, attributes in
-            let encodable = attributes.compactMapValues { $0 as? Encodable }
+            var encodable: [String: Encodable] = [:]
+            for (key, value) in attributes {
+                switch value {
+                case let v as String:        encodable[key] = v
+                case let v as NSString:      encodable[key] = String(v)
+                case let v as KotlinInt:     encodable[key] = v.intValue
+                case let v as KotlinLong:    encodable[key] = v.int64Value
+                case let v as KotlinDouble:  encodable[key] = v.doubleValue
+                case let v as KotlinFloat:   encodable[key] = v.floatValue
+                case let v as KotlinBoolean: encodable[key] = v.boolValue
+                case let v as NSNumber:      encodable[key] = v.doubleValue
+                default: break
+                }
+            }
             switch level {
             case "DEBUG": ddLogger.debug(message, attributes: encodable)
             case "INFO":  ddLogger.info(message,  attributes: encodable)
