@@ -29,6 +29,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
+import model.BleClient
+import model.BleMessage
 import scanner.IoTDevice
 import scanner.Scanner
 

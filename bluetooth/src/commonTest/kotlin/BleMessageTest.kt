@@ -1,5 +1,5 @@
-import handler.BleClient
-import handler.BleMessage
+import model.BleClient
+import model.BleMessage
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals

@@ -6,7 +6,6 @@ import BluetoothConstants.SERVICE_UUID
 import ConnectionQuality
 import client.Client
 import client.ClientCharacteristic
-import client.IOSClientWrapper
 import client.IOSClient
 import client.WriteType
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
@@ -14,6 +13,8 @@ import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.error
 import com.foodics.crosscommunicationlibrary.logger.info
 import com.foodics.crosscommunicationlibrary.logger.warn
+import model.BleClient
+import model.BleMessage
 import rssiToDistance
 import rssiToSignalLevel
 import kotlinx.coroutines.CoroutineScope
@@ -38,9 +39,9 @@ actual class BluetoothClientHandler(
     private val logger: CommunicationLogger?
 ) {
 
-    private val iosClientWrapper = IOSClientWrapper(IOSClient())
-    private val client: Client = Client(iosClientWrapper)
-    private val scanner: Scanner = Scanner(iosClientWrapper)
+    private val iosClient = IOSClient()
+    private val client: Client = Client(iosClient)
+    private val scanner: Scanner = Scanner(iosClient)
     private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private lateinit var clientToServerChar: ClientCharacteristic
@@ -83,7 +84,7 @@ actual class BluetoothClientHandler(
                 throw Exception("Characteristic $CHAR_TO_CLIENT_UUID not found on ${device.name}")
             }
 
-        iosClientWrapper.value.startRssiPolling(scope)
+        iosClient.startRssiPolling(scope)
         logger?.info(LOG_TITLE, "Connected to BLE server", mapOf("device_name" to device.name))
     }
 
@@ -98,7 +99,7 @@ actual class BluetoothClientHandler(
             bytesReceived += it.size
             logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to it.size))
         },
-        iosClientWrapper.value.disconnectEvent.map {
+        iosClient.disconnectEvent.map {
             logger?.warn(LOG_TITLE, "Server disconnected unexpectedly")
             throw Exception("Server disconnected")
         }
@@ -108,7 +109,7 @@ actual class BluetoothClientHandler(
         var windowStart = (NSDate().timeIntervalSince1970 * 1000).toLong()
         while (true) {
             delay(3000)
-            val rssi = iosClientWrapper.value.rssiFlow.value
+            val rssi = iosClient.rssiFlow.value
             val now = (NSDate().timeIntervalSince1970 * 1000).toLong()
             val windowSec = ((now - windowStart).coerceAtLeast(1)) / 1000.0
             val throughput = ((bytesSent + bytesReceived) / windowSec).toLong()
@@ -119,7 +120,7 @@ actual class BluetoothClientHandler(
                 rssiDbm = rssi,
                 signalLevel = rssiToSignalLevel(rssi),
                 estimatedDistanceMeters = rssiToDistance(rssi),
-                mtuBytes = iosClientWrapper.value.mtu(),
+                mtuBytes = iosClient.mtu(),
                 throughputBytesPerSecond = throughput
             )
             logger?.debug(

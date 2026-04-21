@@ -6,15 +6,14 @@ import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.SERVICE_UUID
 import advertisement.AdvertisementSettings
 import advertisement.Advertiser
-import advertisement.IOSServer
-import advertisement.IOSServerWrapper
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.info
+import model.BleClient
+import model.BleMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -34,14 +33,11 @@ actual class BluetoothServerHandler(
 ) {
 
     private val iosServer = IOSServer(NotificationsRecords())
-    private val iosServerWrapper = IOSServerWrapper(iosServer)
-    private val advertiser: Advertiser = Advertiser(iosServerWrapper)
-    private val server: Server = Server(iosServerWrapper)
+    private val advertiser: Advertiser = Advertiser(iosServer)
+    private val server: Server = Server(iosServer)
     private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _messageFlow = MutableSharedFlow<BleMessage>(extraBufferCapacity = 64)
-    private var receivedWritesJob: Job? = null
-    private var clientWatchJob: Job? = null
 
     suspend fun start(deviceName: String, identifier: String) {
         stop()
@@ -50,7 +46,7 @@ actual class BluetoothServerHandler(
 
         server.startServer(listOf(createServiceConfig()), scope)
 
-        receivedWritesJob = iosServer.receivedWrites
+        iosServer.receivedWrites
             .filter { (_, charUuid, _) -> charUuid == CHAR_FROM_CLIENT_UUID }
             .onEach { (centralId, _, data) ->
                 val name = iosServer.clientNames.value[centralId] ?: centralId
@@ -59,9 +55,8 @@ actual class BluetoothServerHandler(
             }
             .launchIn(scope)
 
-        // Watch for client connect / disconnect events
         var previousIds = emptySet<String>()
-        clientWatchJob = iosServer.clientNames
+        iosServer.clientNames
             .onEach { current ->
                 val currentIds = current.keys.toSet()
                 (currentIds - previousIds).forEach { id ->
@@ -95,10 +90,6 @@ actual class BluetoothServerHandler(
     suspend fun stop() {
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        receivedWritesJob?.cancel()
-        receivedWritesJob = null
-        clientWatchJob?.cancel()
-        clientWatchJob = null
         advertiser.stop()
         server.stopServer()
         logger?.info(LOG_TITLE, "BLE server stopped")

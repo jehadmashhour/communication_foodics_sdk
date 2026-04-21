@@ -47,6 +47,7 @@ fun BluetoothSampleApp() {
         CommunicationSDK.builder()
             .enableLogging(sampleDatadogConfig(), LogAttributes())
             .enableBluetooth()
+//            .enableLan()
             .build()
     }
 

@@ -31,6 +31,8 @@ import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import scanner.IoTDevice
+import model.BleClient
+import model.BleMessage
 import server.*
 
 private const val LOG_TITLE = "BLE_SERVER"

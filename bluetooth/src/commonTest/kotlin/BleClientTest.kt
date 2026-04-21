@@ -1,4 +1,4 @@
-import handler.BleClient
+import model.BleClient
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
