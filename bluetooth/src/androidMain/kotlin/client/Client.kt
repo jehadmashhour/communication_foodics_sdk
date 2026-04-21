@@ -67,4 +67,16 @@ actual class Client(
             ?.filter { it?.state == GattConnectionState.STATE_DISCONNECTED }
             ?.map { }
             ?: emptyFlow()
+
+    suspend fun readRssi(): Int = try {
+        client?.readRssi() ?: Int.MIN_VALUE
+    } catch (_: Exception) {
+        Int.MIN_VALUE
+    }
+
+    suspend fun requestMtu(mtu: Int): Int = try {
+        client?.requestMtu(mtu) ?: 23
+    } catch (_: Exception) {
+        23
+    }
 }

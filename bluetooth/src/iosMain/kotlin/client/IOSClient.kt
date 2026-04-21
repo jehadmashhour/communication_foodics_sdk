@@ -69,6 +69,22 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
     private val _disconnectEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val disconnectEvent: SharedFlow<Unit> = _disconnectEvent.asSharedFlow()
 
+    private val _rssi = MutableStateFlow(Int.MIN_VALUE)
+    val rssiFlow: StateFlow<Int> = _rssi.asStateFlow()
+
+    fun mtu(): Int =
+        (peripheral.maximumWriteValueLengthForType(CBCharacteristicWriteWithResponse).toInt() + 3)
+            .coerceIn(23, 512)
+
+    fun startRssiPolling(scope: CoroutineScope) {
+        scope.launch(Dispatchers.Main) {
+            while (isActive) {
+                peripheral.readRSSI()
+                delay(3000)
+            }
+        }
+    }
+
     // deviceName -> Pair(device, lastSeenTime)
     private val devicesMap = mutableMapOf<String, Pair<IoTDevice, Long>>()
 
@@ -212,6 +228,13 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
     ) {
         _disconnectEvent.tryEmit(Unit)
         onDeviceDisconnected?.invoke()
+    }
+
+    // ---- RSSI -----------------------------------------------------------
+
+    @ObjCSignatureOverride
+    override fun peripheral(peripheral: CBPeripheral, didReadRSSI: NSNumber, error: NSError?) {
+        if (error == null) _rssi.value = didReadRSSI.intValue
     }
 
     // ---- CHARACTERISTIC EVENTS -----------------------------------------

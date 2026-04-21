@@ -5,6 +5,7 @@ import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
+import ConnectionQuality
 import ConnectionType
 import handler.BluetoothClientHandler
 import handler.BluetoothServerHandler
@@ -43,4 +44,6 @@ actual class BluetoothCommunicationChannel : CommunicationChannel {
         serverHandler.receiveMessagesFromClient().map { msg ->
             ClientMessage(ConnectedClient(msg.client.id, msg.client.name), msg.data)
         }
+
+    actual override fun connectionQuality(): Flow<ConnectionQuality> = clientHandler.connectionQuality()
 }

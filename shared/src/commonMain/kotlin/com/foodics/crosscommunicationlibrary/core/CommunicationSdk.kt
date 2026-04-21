@@ -1,5 +1,6 @@
 package com.foodics.crosscommunicationlibrary.core
 
+import ConnectionQuality
 import ConnectionType
 import client.WriteType
 import kotlinx.coroutines.Dispatchers
@@ -118,6 +119,9 @@ class CommunicationSDK(
 
     fun scanDevices(connectionType: ConnectionType): Flow<List<IoTDevice>> =
         channels.first { it.connectionType == connectionType }.scan()
+
+    fun connectionQuality(connectionType: ConnectionType): Flow<ConnectionQuality> =
+        channels.first { it.connectionType == connectionType }.connectionQuality()
 
     companion object {
         fun builder(): CommunicationSdkBuilder = CommunicationSdkBuilder()

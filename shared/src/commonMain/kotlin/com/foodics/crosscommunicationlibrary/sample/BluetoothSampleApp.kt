@@ -1,7 +1,9 @@
 package com.foodics.crosscommunicationlibrary.sample
 
 import BluetoothConstants.HELLO_PREFIX
+import ConnectionQuality
 import ConnectionType
+import SignalLevel
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -246,6 +248,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     var scanning by remember { mutableStateOf(false) }
     var connecting by remember { mutableStateOf(false) }
     var connected by remember { mutableStateOf(false) }
+    var quality by remember { mutableStateOf<ConnectionQuality?>(null) }
     val prefix = remember { devicePlatformPrefix() }
 
     val startScan = rememberBluetoothEnableLauncher {
@@ -276,6 +279,11 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             status = "Disconnected: ${e.message}"
             connected = false
         }
+    }
+
+    LaunchedEffect(connected) {
+        if (!connected) { quality = null; return@LaunchedEffect }
+        sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { quality = it }
     }
 
     Column(
@@ -355,6 +363,8 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                 }
             }
         } else {
+            quality?.let { ConnectionQualityCard(it) }
+
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(messages) { msg ->
                     Text(msg, modifier = Modifier.padding(vertical = 4.dp))
@@ -387,6 +397,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                     scope.launch {
                         sdk.disconnectClient(ConnectionType.BLUETOOTH)
                         connected = false
+                        quality = null
                         status = "Disconnected"
                     }
                 },
@@ -422,6 +433,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     var connectedServerName by remember { mutableStateOf("") }
     var clientMessages by remember { mutableStateOf(listOf<String>()) }
     var clientInput by remember { mutableStateOf("") }
+    var clientQuality by remember { mutableStateOf<ConnectionQuality?>(null) }
 
     val startServer = rememberBluetoothEnableLauncher {
         scope.launch {
@@ -490,6 +502,11 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
             clientStatus = "Disconnected: ${e.message}"
             clientConnected = false
         }
+    }
+
+    LaunchedEffect(clientConnected) {
+        if (!clientConnected) { clientQuality = null; return@LaunchedEffect }
+        sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { clientQuality = it }
     }
 
     Column(
@@ -663,6 +680,10 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                 }
             }
 
+            clientQuality?.let { q ->
+                item { ConnectionQualityCard(q, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) }
+            }
+
             items(clientMessages) { msg ->
                 Text("[Client] $msg", modifier = Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodySmall)
                 HorizontalDivider()
@@ -696,12 +717,66 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                             scope.launch {
                                 sdk.disconnectClient(ConnectionType.BLUETOOTH)
                                 clientConnected = false
+                                clientQuality = null
                                 clientStatus = "Disconnected"
                             }
                         },
                         modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
                     ) { Text("Disconnect from Server") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionQualityCard(quality: ConnectionQuality, modifier: Modifier = Modifier.fillMaxWidth()) {
+    val signalColor = when (quality.signalLevel) {
+        SignalLevel.EXCELLENT -> androidx.compose.ui.graphics.Color(0xFF2E7D32)
+        SignalLevel.GOOD      -> androidx.compose.ui.graphics.Color(0xFF558B2F)
+        SignalLevel.FAIR      -> androidx.compose.ui.graphics.Color(0xFFF57F17)
+        SignalLevel.POOR      -> androidx.compose.ui.graphics.Color(0xFFC62828)
+        SignalLevel.UNKNOWN   -> androidx.compose.ui.graphics.Color.Gray
+    }
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("Connection Quality", style = MaterialTheme.typography.labelMedium)
+                Text(
+                    quality.signalLevel.name,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = signalColor
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("RSSI", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${quality.rssiDbm} dBm", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Distance", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val dist = quality.estimatedDistanceMeters
+                    Text(if (dist < 0) "—" else "${(dist * 10).toInt() / 10}.${(dist * 10).toInt() % 10} m", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("MTU", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${quality.mtuBytes} B", style = MaterialTheme.typography.bodySmall)
+                }
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("Throughput", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val bps = quality.throughputBytesPerSecond
+                    Text(if (bps < 1024) "$bps B/s" else "${bps / 1024} KB/s", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

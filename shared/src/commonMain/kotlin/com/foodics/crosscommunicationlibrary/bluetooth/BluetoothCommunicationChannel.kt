@@ -4,6 +4,7 @@ import client.WriteType
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
+import ConnectionQuality
 import ConnectionType
 import kotlinx.coroutines.flow.Flow
 import scanner.IoTDevice
@@ -22,4 +23,5 @@ expect class BluetoothCommunicationChannel() : CommunicationChannel {
     override fun clientConnectionState(): Flow<Boolean>
     override fun connectedClients(): Flow<List<ConnectedClient>>
     override suspend fun receiveMessagesFromClient(): Flow<ClientMessage>
+    override fun connectionQuality(): Flow<ConnectionQuality>
 }
