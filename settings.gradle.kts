@@ -27,5 +27,6 @@ dependencyResolutionManagement {
 rootProject.name = "CrossCommunicationLibrary"
 include(":shared")
 include(":androidApp")
+include(":androidSample")
 include(":bluetooth")
 include(":lan")

@@ -10,6 +10,8 @@ import client.IOSClientWrapper
 import client.WriteType
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import scanner.IoTDevice
 import scanner.Scanner
 
@@ -55,7 +57,10 @@ actual class BluetoothClientHandler() {
       //  Log.d(TAG, "Sent to server: ${String(data)}")
     }
 
-    suspend fun receiveFromServer(): Flow<ByteArray> = clientFromServerChar.getNotifications()
+    suspend fun receiveFromServer(): Flow<ByteArray> = merge(
+        clientFromServerChar.getNotifications(),
+        iosClientWrapper.value.disconnectEvent.map { throw Exception("Server disconnected") }
+    )
 
     suspend fun disconnect() {
         client.disconnect()

@@ -75,7 +75,7 @@ data class PeripheralDevice(internal val peripheral: CBPeripheral) : NativeDevic
         get() = peripheral.name ?: "Unknown"
 
     override val address: String
-        get() = "00:00:00:00:${NativeDevice.counter++}"
+        get() = peripheral.identifier.UUIDString
 }
 
 data class CentralDevice(internal val central: CBCentral) : NativeDevice {
@@ -84,5 +84,5 @@ data class CentralDevice(internal val central: CBCentral) : NativeDevice {
         get() = "No name"
 
     override val address: String
-        get() = "00:00:00:00:${NativeDevice.counter++}"
+        get() = central.identifier.UUIDString
 }

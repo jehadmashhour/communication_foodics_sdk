@@ -8,4 +8,5 @@ object BluetoothConstants {
     val CHAR_TO_CLIENT_UUID = uuidFrom("00001525-1212-efde-1523-785feabcd123")   // server → client
 
     const val TAG = "BluetoothCommunicationChannel"
+    const val HELLO_PREFIX = "__HELLO__:"
 }

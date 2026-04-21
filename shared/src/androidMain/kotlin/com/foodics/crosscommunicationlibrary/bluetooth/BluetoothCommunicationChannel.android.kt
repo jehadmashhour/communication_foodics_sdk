@@ -2,8 +2,11 @@ package com.foodics.crosscommunicationlibrary.bluetooth
 
 import client.WriteType
 import com.foodics.crosscommunicationlibrary.AndroidAppContextProvider
+import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
+import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import ConnectionType
+import kotlinx.coroutines.flow.Flow
 import scanner.IoTDevice
 
 actual class BluetoothCommunicationChannel : CommunicationChannel {
@@ -26,4 +29,7 @@ actual class BluetoothCommunicationChannel : CommunicationChannel {
     actual override suspend fun receiveDataFromClient() = serverHandler.receiveFromClient()
     actual override suspend fun stopServer() = serverHandler.stop()
     actual override suspend fun disconnectClient() = clientHandler.disconnect()
+    actual override fun clientConnectionState() = serverHandler.clientConnectionState()
+    actual override fun connectedClients(): Flow<List<ConnectedClient>> = serverHandler.connectedClients()
+    actual override suspend fun receiveMessagesFromClient(): Flow<ClientMessage> = serverHandler.receiveMessagesFromClient()
 }

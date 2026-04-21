@@ -32,6 +32,7 @@
 package client
 
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import scanner.IoTDevice
 
 expect class Client {
@@ -41,6 +42,8 @@ expect class Client {
     suspend fun disconnect()
 
     suspend fun discoverServices(): ClientServices
+
+    fun disconnectEvent(): Flow<Unit>
 
 }
 

@@ -31,17 +31,24 @@
 
 package advertisement
 
+import BluetoothConstants
 import client.toCBUUID
+import client.toByteArray
 import client.toNSData
 import client.toUuid
+import com.benasher44.uuid.Uuid
 import io.github.aakira.napier.Napier
 import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import platform.CoreBluetooth.CBATTErrorSuccess
 import platform.CoreBluetooth.CBATTRequest
 import platform.CoreBluetooth.CBAdvertisementDataLocalNameKey
 import platform.CoreBluetooth.CBAdvertisementDataServiceDataKey
@@ -94,6 +101,14 @@ class IOSServer(
         it.mapKeys { IoTDevice(CentralDevice(it.key)) }
     }
 
+    // Direct write events: (centralId, characteristicUuid, data) — __HELLO__ messages are consumed here and never emitted.
+    private val _receivedWrites = MutableSharedFlow<Triple<String, Uuid, ByteArray>>(extraBufferCapacity = 64)
+    val receivedWrites: SharedFlow<Triple<String, Uuid, ByteArray>> = _receivedWrites.asSharedFlow()
+
+    // centralId → display name (id used as name until __HELLO__ arrives)
+    private val _clientNames = MutableStateFlow<Map<String, String>>(emptyMap())
+    val clientNames: StateFlow<Map<String, String>> = _clientNames.asStateFlow()
+
     private var services = listOf<CBService>()
 
     override fun peripheralManagerDidUpdateState(peripheral: CBPeripheralManager) {
@@ -128,18 +143,24 @@ class IOSServer(
     ) {
         Napier.i("Receive write request", tag = TAG)
         try {
-
             val requests = didReceiveWriteRequests.map { it as CBATTRequest }
-            Napier.i("Requests: $requests", tag = TAG)
-            val central = requests.first().central
-            Napier.i("Central: $central", tag = TAG)
-            val profile = getProfile(central)
-            Napier.i("Profile: $profile", tag = TAG)
-            profile.onEvent(WriteRequest(requests))
+            requests.forEach { request ->
+                val data = request.value?.toByteArray() ?: byteArrayOf()
+                if (data.isNotEmpty()) {
+                    val centralId = request.central.identifier.UUIDString
+                    val text = data.decodeToString()
+                    if (text.startsWith(BluetoothConstants.HELLO_PREFIX)) {
+                        val name = text.removePrefix(BluetoothConstants.HELLO_PREFIX)
+                        _clientNames.value = _clientNames.value + (centralId to name)
+                    } else {
+                        _receivedWrites.tryEmit(Triple(centralId, request.characteristic().UUID.toUuid(), data))
+                    }
+                }
+            }
+            requests.firstOrNull()?.let { manager.respondToRequest(it, CBATTErrorSuccess) }
         } catch (t: Throwable) {
-            Napier.i("Receive write request", tag = TAG, throwable = t)
+            Napier.i("Receive write request error", tag = TAG, throwable = t)
         }
-
     }
 
     @ObjCSignatureOverride
@@ -150,6 +171,8 @@ class IOSServer(
     ) {
         Napier.i("Subscribe to characteristic", tag = TAG)
         notificationsRecords.addCentral(didSubscribeToCharacteristic.UUID.toUuid(), central)
+        // Don't add to _clientNames yet — wait for __HELLO__ to supply the display name.
+        getProfile(central)
     }
 
     @ObjCSignatureOverride
@@ -160,6 +183,8 @@ class IOSServer(
     ) {
         Napier.i("Unsubscribe from characteristic", tag = TAG)
         notificationsRecords.removeCentral(didUnsubscribeFromCharacteristic.UUID.toUuid(), central)
+        val centralId = central.identifier.UUIDString
+        _clientNames.value = _clientNames.value - centralId
     }
 
     override fun peripheralManager(
@@ -175,9 +200,13 @@ class IOSServer(
         bleState.first { it == CBCentralManagerStatePoweredOn }
         val combinedData = "${settings.name}|${settings.identifier}"
 
+        // CBAdvertisementDataServiceDataKey puts the UUID + payload in the MAIN advertisement
+        // packet, guaranteeing Android scanners can match on it even without a scan response.
+        // CBAdvertisementDataLocalNameKey goes to the scan response on iOS, which is not
+        // reliably received by Android hardware scan filters.
         val map: Map<Any?, Any> = mapOf(
-            CBAdvertisementDataLocalNameKey to combinedData,
-            CBAdvertisementDataServiceUUIDsKey to listOf(settings.uuid.toCBUUID()) //https://kotlinlang.org/docs/native-objc-interop.html#mappings
+            CBAdvertisementDataServiceUUIDsKey to listOf(settings.uuid.toCBUUID()),
+            CBAdvertisementDataLocalNameKey to combinedData
         )
         manager.startAdvertising(map)
     }
@@ -212,6 +241,21 @@ class IOSServer(
 
     suspend fun stopAdvertising() {
         manager.stopAdvertising()
+    }
+
+    /** Send a BLE notification to all subscribed centrals for the given characteristic UUID. */
+    fun sendToSubscribers(charUuid: Uuid, data: ByteArray) {
+        val centrals = notificationsRecords.getCentrals(charUuid)
+        if (centrals.isEmpty()) {
+            Napier.i("sendToSubscribers: no subscribers for $charUuid", tag = TAG)
+            return
+        }
+        val cbChar = services
+            .flatMap { svc -> svc.characteristics?.mapNotNull { it as? CBMutableCharacteristic } ?: emptyList() }
+            .firstOrNull { it.UUID.toUuid() == charUuid }
+            ?: run { Napier.i("sendToSubscribers: characteristic $charUuid not found", tag = TAG); return }
+        @Suppress("UNCHECKED_CAST")
+        manager.updateValue(data.toNSData(), cbChar, centrals as List<CBCentral>)
     }
 
     private fun getProfile(central: CBCentral): ServerProfile {

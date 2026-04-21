@@ -34,7 +34,12 @@ package client
 import android.annotation.SuppressLint
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import sdk.client.main.callback.ClientBleGatt
+import sdk.core.data.GattConnectionState
 import sdk.core.ServerDevice
 import scanner.IoTDevice
 
@@ -47,7 +52,6 @@ actual class Client(
 
     actual suspend fun connect(device: IoTDevice, scope: CoroutineScope) {
         client = ClientBleGatt.connect(context, device.bleDevice as ServerDevice, scope)
-        println("connected jehad ${client?.isConnected}")
     }
 
     actual suspend fun disconnect() {
@@ -57,4 +61,10 @@ actual class Client(
     actual suspend fun discoverServices(): ClientServices {
         return client!!.discoverServices().toCrossplatform()
     }
+
+    actual fun disconnectEvent(): Flow<Unit> =
+        client?.connectionStateWithStatus
+            ?.filter { it?.state == GattConnectionState.STATE_DISCONNECTED }
+            ?.map { }
+            ?: emptyFlow()
 }

@@ -55,11 +55,18 @@ actual class Advertiser(private val context: Context) {
     actual suspend fun advertise(settings: AdvertisementSettings) {
         val advertiser = BleAdvertiser.create(context)
 
-        val combinedData = "${settings.name}|${settings.identifier}".toByteArray()
+        // Legacy advertising PDU is 31 bytes. Flags (3) + ServiceUUID16 (4) + ServiceData16 (4+N)
+        // overflows when N > 20. Move the payload to the scan response (its own 31-byte packet).
+        // ServiceData16 overhead is 4 bytes, leaving 27 bytes for the name. The identifier is
+        // omitted — Android's MAC address is stable so scanners use it as the fallback key.
+        require(settings.name.length <= 27) {
+            "Device name too long: ${settings.name.length} chars (max 27). Shorten it before advertising."
+        }
+        val combinedData = settings.name.toByteArray()
 
         val advertiserConfig = BleAdvertisingConfig(
             settings = BleAdvertisingSettings(
-                deviceName = settings.name,//not used
+                deviceName = settings.name,
                 legacyMode = true,
                 scannable = true,
                 connectable = true
@@ -67,6 +74,8 @@ actual class Advertiser(private val context: Context) {
             advertiseData = BleAdvertisingData(
                 serviceUuid = ParcelUuid(settings.uuid),
                 includeDeviceName = false,
+            ),
+            scanResponseData = BleAdvertisingData(
                 serviceData = listOf(
                     ServiceData(
                         ParcelUuid(settings.uuid),

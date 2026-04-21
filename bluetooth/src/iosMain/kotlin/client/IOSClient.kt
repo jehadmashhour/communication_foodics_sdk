@@ -66,6 +66,9 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
     private val _bleState = MutableStateFlow(CBManagerStateUnknown)
     val bleState: StateFlow<CBManagerState> = _bleState.asStateFlow()
 
+    private val _disconnectEvent = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val disconnectEvent: SharedFlow<Unit> = _disconnectEvent.asSharedFlow()
+
     // deviceName -> Pair(device, lastSeenTime)
     private val devicesMap = mutableMapOf<String, Pair<IoTDevice, Long>>()
 
@@ -93,7 +96,7 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
                     val entry = iterator.next()
                     val lastSeen = entry.value.second
 
-                    if (now - lastSeen > 7000) { // 7 sec timeout
+                    if (now - lastSeen > 5000) {
                         println("Removing stale device: ${entry.key}")
                         iterator.remove()
                     }
@@ -210,6 +213,7 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         didDisconnectPeripheral: CBPeripheral,
         error: NSError?
     ) {
+        _disconnectEvent.tryEmit(Unit)
         onDeviceDisconnected?.invoke()
     }
 
@@ -283,26 +287,29 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         advertisementData: Map<Any?, *>,
         RSSI: NSNumber
     ) {
-        // Extract service UUIDs
+        // Match on service UUID list OR service data UUID (iOS peripheral puts payload in service data)
         val serviceUUIDs = advertisementData[CBAdvertisementDataServiceUUIDsKey] as? List<CBUUID>
+        val serviceDataMap = advertisementData[CBAdvertisementDataServiceDataKey] as? Map<CBUUID, NSData>
 
-        val matches = serviceUUIDs?.any {
-            try {
-                it.toUuid() == ADVERTISER_UUID
-            } catch (_: Exception) {
-                false
-            }
+        val matchesServiceUUID = serviceUUIDs?.any {
+            try { it.toUuid() == ADVERTISER_UUID } catch (_: Exception) { false }
+        } == true
+        val matchesServiceData = serviceDataMap?.keys?.any {
+            try { it.toUuid() == ADVERTISER_UUID } catch (_: Exception) { false }
         } == true
 
-        if (!matches) return
+        if (!matchesServiceUUID && !matchesServiceData) return
 
         val device = PeripheralDevice(didDiscoverPeripheral)
 
         // ---- 1. Service data (your custom payload) ----
-        val serviceDataMap =
-            advertisementData[CBAdvertisementDataServiceDataKey] as? Map<CBUUID, NSData>
         val serviceData =
             serviceDataMap?.get(ADVERTISER_UUID.toCBUUID())?.toByteArray()?.decodeToString()
+
+        // With split advertising (serviceUuid in adv PDU, serviceData in scan response), iOS fires
+        // this callback twice. Skip the first event (no serviceData yet) to avoid a temporary
+        // "Unknown" entry that would appear until the scan response arrives.
+        if (serviceData == null) return
 
         val nameFromServiceData = serviceData?.split("|")?.firstOrNull()
         val identifierFromServiceData = serviceData?.split("|")?.getOrNull(1)

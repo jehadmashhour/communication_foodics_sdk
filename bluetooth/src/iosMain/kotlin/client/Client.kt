@@ -55,4 +55,6 @@ actual class Client(
     actual suspend fun discoverServices(): ClientServices {
         return client.value.discoverServices()
     }
+
+    actual fun disconnectEvent(): Flow<Unit> = client.value.disconnectEvent
 }

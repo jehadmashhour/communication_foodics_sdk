@@ -3,6 +3,8 @@ package com.foodics.crosscommunicationlibrary.core
 import ConnectionType
 import client.WriteType
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import scanner.IoTDevice
 
 interface CommunicationChannel {
@@ -19,4 +21,9 @@ interface CommunicationChannel {
 
     suspend fun stopServer()
     suspend fun disconnectClient()
+
+    fun clientConnectionState(): Flow<Boolean> = flowOf(false)
+    fun connectedClients(): Flow<List<ConnectedClient>> = flowOf(emptyList())
+    suspend fun receiveMessagesFromClient(): Flow<ClientMessage> =
+        receiveDataFromClient().map { ClientMessage(ConnectedClient("", "Device"), it) }
 }
