@@ -302,7 +302,10 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     }
 
     LaunchedEffect(scanning) {
-        if (!scanning) return@LaunchedEffect
+        if (!scanning) {
+            devices = emptyList()
+            return@LaunchedEffect
+        }
         sdk.scan().collect { found -> devices = found }
     }
 
@@ -527,7 +530,10 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     }
 
     LaunchedEffect(scanning) {
-        if (!scanning) return@LaunchedEffect
+        if (!scanning) {
+            devices = emptyList()
+            return@LaunchedEffect
+        }
         sdk.scan().collect { found -> devices = found }
     }
 

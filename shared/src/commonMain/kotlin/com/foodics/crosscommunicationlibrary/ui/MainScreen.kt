@@ -87,7 +87,10 @@ class MainScreen(
 //            }
 
             LaunchedEffect(isScanning) {
-                if (!isScanning) return@LaunchedEffect
+                if (!isScanning) {
+                    devices = emptyList()
+                    return@LaunchedEffect
+                }
 
                 sdk.scan().collect { list ->
                     list.forEach { device ->
