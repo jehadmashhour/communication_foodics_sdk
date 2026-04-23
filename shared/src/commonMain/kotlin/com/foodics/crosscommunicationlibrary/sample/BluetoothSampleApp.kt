@@ -397,6 +397,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                     ) {
                         Column(Modifier.padding(12.dp)) {
                             Text(device.name, style = MaterialTheme.typography.bodyLarge)
+                            Text("ID: ${device.id}", style = MaterialTheme.typography.bodySmall)
                             Text(
                                 device.addressByType.entries.joinToString { "${it.key}: ${it.value}" },
                                 style = MaterialTheme.typography.bodySmall
@@ -753,6 +754,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                     ) {
                         Column(Modifier.padding(12.dp)) {
                             Text(device.name, style = MaterialTheme.typography.bodyLarge)
+                            Text("ID: ${device.id}", style = MaterialTheme.typography.bodySmall)
                             Text(
                                 device.addressByType.entries.joinToString { "${it.key}: ${it.value}" },
                                 style = MaterialTheme.typography.bodySmall
