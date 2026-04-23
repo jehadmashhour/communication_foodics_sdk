@@ -200,10 +200,14 @@ class IOSServer(
         manager.stopAdvertising()
     }
 
-    fun sendToSubscribers(charUuid: Uuid, data: ByteArray) {
-        val centrals = notificationsRecords.getCentrals(charUuid)
+    fun sendToSubscribers(charUuid: Uuid, data: ByteArray) = sendToSubscribers(charUuid, data, emptyList())
+
+    fun sendToSubscribers(charUuid: Uuid, data: ByteArray, targetIds: List<String>) {
+        val allCentrals = notificationsRecords.getCentrals(charUuid)
+        val centrals = if (targetIds.isEmpty()) allCentrals
+                       else allCentrals.filter { it.identifier.UUIDString in targetIds }
         if (centrals.isEmpty()) {
-            Napier.i("sendToSubscribers: no subscribers for $charUuid", tag = TAG)
+            Napier.i("sendToSubscribers: no matching subscribers for $charUuid", tag = TAG)
             return
         }
         val cbChar = services

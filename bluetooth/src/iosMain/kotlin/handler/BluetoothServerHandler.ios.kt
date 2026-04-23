@@ -73,9 +73,11 @@ actual class BluetoothServerHandler(
         logger?.info(LOG_TITLE, "BLE advertising started", mapOf("device_name" to deviceName))
     }
 
-    suspend fun sendToClient(data: ByteArray) {
+    suspend fun sendToClient(data: ByteArray) = sendToClients(data, emptyList())
+
+    suspend fun sendToClients(data: ByteArray, targetIds: List<String>) {
         logger?.debug(LOG_TITLE, "Sending data to subscribers", mapOf("bytes" to data.size))
-        iosServer.sendToSubscribers(CHAR_TO_CLIENT_UUID, data)
+        iosServer.sendToSubscribers(CHAR_TO_CLIENT_UUID, data, targetIds)
     }
 
     fun receiveFromClient(): Flow<ByteArray> = _messageFlow.map { it.data }

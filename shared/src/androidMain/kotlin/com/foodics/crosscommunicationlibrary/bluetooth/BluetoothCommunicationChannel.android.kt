@@ -37,6 +37,7 @@ actual class BluetoothCommunicationChannel(
 
     actual override suspend fun receiveDataFromServer(): Flow<ByteArray> = clientHandler.receiveFromServer()
     actual override suspend fun sendDataToClient(data: ByteArray) = serverHandler.sendToClient(data)
+    actual override suspend fun sendDataToClients(data: ByteArray, clientIds: List<String>) = serverHandler.sendToClients(data, clientIds)
     actual override suspend fun receiveDataFromClient(): Flow<ByteArray> = serverHandler.receiveFromClient()
     actual override suspend fun stopServer() = serverHandler.stop()
     actual override suspend fun disconnectClient() = clientHandler.disconnect()

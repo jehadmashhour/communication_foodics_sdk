@@ -19,6 +19,7 @@ interface CommunicationChannel {
     suspend fun receiveDataFromServer(): Flow<ByteArray>
 
     suspend fun sendDataToClient(data: ByteArray)
+    suspend fun sendDataToClients(data: ByteArray, clientIds: List<String>) = sendDataToClient(data)
     suspend fun receiveDataFromClient(): Flow<ByteArray>
 
     suspend fun stopServer()

@@ -18,6 +18,7 @@ expect class BluetoothCommunicationChannel(logger: CommunicationLogger?) : Commu
     override suspend fun sendDataToServer(data: ByteArray, writeType: WriteType)
     override suspend fun receiveDataFromServer(): Flow<ByteArray>
     override suspend fun sendDataToClient(data: ByteArray)
+    override suspend fun sendDataToClients(data: ByteArray, clientIds: List<String>)
     override suspend fun receiveDataFromClient(): Flow<ByteArray>
     override suspend fun stopServer()
     override suspend fun disconnectClient()

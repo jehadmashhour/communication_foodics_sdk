@@ -16,9 +16,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -103,6 +106,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     var advertisingAs by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var connectedClients by remember { mutableStateOf(listOf<ConnectedClient>()) }
+    var selectedClientIds by remember { mutableStateOf(emptySet<String>()) }
     val prefix = remember { devicePlatformPrefix() }
     val maxNameLength = 27 - prefix.length - 1
 
@@ -126,6 +130,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         if (!running) return@LaunchedEffect
         sdk.connectedClients(ConnectionType.BLUETOOTH).collect { clients ->
             connectedClients = clients
+            selectedClientIds = selectedClientIds.filter { id -> clients.any { it.id == id } }.toSet()
             status = when {
                 clients.isEmpty() -> "Running — waiting for client"
                 clients.size == 1 -> "Connected: ${clients[0].name}"
@@ -194,6 +199,35 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             }
         }
 
+        if (running && connectedClients.size > 1) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedClientIds.isEmpty(),
+                    onClick = { selectedClientIds = emptySet() },
+                    label = { Text("All") }
+                )
+                connectedClients.forEach { client ->
+                    FilterChip(
+                        selected = client.id in selectedClientIds,
+                        onClick = {
+                            selectedClientIds = if (client.id in selectedClientIds) {
+                                val updated = selectedClientIds - client.id
+                                if (updated.isEmpty()) emptySet() else updated
+                            } else {
+                                selectedClientIds + client.id
+                            }
+                        },
+                        label = { Text(client.name) }
+                    )
+                }
+            }
+        }
+
         LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
             items(messages) { msg ->
                 Text(msg, modifier = Modifier.padding(vertical = 4.dp))
@@ -201,11 +235,13 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             }
         }
 
+        val sendLabel = if (selectedClientIds.isEmpty()) "Message to all clients"
+                        else "Message to ${selectedClientIds.size} client(s)"
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
-                label = { Text("Message to clients") },
+                label = { Text(sendLabel) },
                 modifier = Modifier.weight(1f),
                 enabled = running && connectedClients.isNotEmpty()
             )
@@ -214,7 +250,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                     val msg = input.trim()
                     input = ""
                     scope.launch {
-                        sdk.sendDataToClient(ConnectionType.BLUETOOTH, msg.encodeToByteArray())
+                        sdk.sendDataToClients(ConnectionType.BLUETOOTH, msg.encodeToByteArray(), selectedClientIds.toList())
                         messages = messages + "Me: $msg"
                     }
                 },
@@ -424,6 +460,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     var serverRunning by remember { mutableStateOf(false) }
     var serverStatus by remember { mutableStateOf("Idle") }
     var connectedClients by remember { mutableStateOf(listOf<ConnectedClient>()) }
+    var selectedClientIds by remember { mutableStateOf(emptySet<String>()) }
     var serverMessages by remember { mutableStateOf(listOf<String>()) }
     var serverInput by remember { mutableStateOf("") }
 
@@ -467,6 +504,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
         if (!serverRunning) return@LaunchedEffect
         sdk.connectedClients(ConnectionType.BLUETOOTH).collect { clients ->
             connectedClients = clients
+            selectedClientIds = selectedClientIds.filter { id -> clients.any { it.id == id } }.toSet()
             serverStatus = when {
                 clients.isEmpty() -> "Running — waiting for clients"
                 clients.size == 1 -> "Connected: ${clients[0].name}"
@@ -594,12 +632,45 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                 HorizontalDivider()
             }
 
+            if (serverRunning && connectedClients.size > 1) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterChip(
+                            selected = selectedClientIds.isEmpty(),
+                            onClick = { selectedClientIds = emptySet() },
+                            label = { Text("All") }
+                        )
+                        connectedClients.forEach { client ->
+                            FilterChip(
+                                selected = client.id in selectedClientIds,
+                                onClick = {
+                                    selectedClientIds = if (client.id in selectedClientIds) {
+                                        val updated = selectedClientIds - client.id
+                                        if (updated.isEmpty()) emptySet() else updated
+                                    } else {
+                                        selectedClientIds + client.id
+                                    }
+                                },
+                                label = { Text(client.name) }
+                            )
+                        }
+                    }
+                }
+            }
+
             item {
+                val dualSendLabel = if (selectedClientIds.isEmpty()) "To all clients"
+                                    else "To ${selectedClientIds.size} client(s)"
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     OutlinedTextField(
                         value = serverInput,
                         onValueChange = { serverInput = it },
-                        label = { Text("To all clients") },
+                        label = { Text(dualSendLabel) },
                         modifier = Modifier.weight(1f),
                         enabled = serverRunning && connectedClients.isNotEmpty(),
                         singleLine = true
@@ -609,7 +680,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                             val msg = serverInput.trim()
                             serverInput = ""
                             scope.launch {
-                                sdk.sendDataToClient(ConnectionType.BLUETOOTH, msg.encodeToByteArray())
+                                sdk.sendDataToClients(ConnectionType.BLUETOOTH, msg.encodeToByteArray(), selectedClientIds.toList())
                                 serverMessages = serverMessages + "Me→clients: $msg"
                             }
                         },

@@ -123,10 +123,14 @@ actual class BluetoothServerHandler(
             .launchIn(scope)
     }
 
-    suspend fun sendToClient(data: ByteArray) {
-        logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("client_count" to toClientChars.size, "bytes" to data.size))
-        Log.i(TAG, "Sending to ${toClientChars.size} client(s): ${String(data)}")
-        toClientChars.values.forEach { it.setValue(data) }
+    suspend fun sendToClient(data: ByteArray) = sendToClients(data, emptyList())
+
+    suspend fun sendToClients(data: ByteArray, targetIds: List<String>) {
+        val targets = if (targetIds.isEmpty()) toClientChars.values
+                      else targetIds.mapNotNull { toClientChars[it] }
+        logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("client_count" to targets.size, "bytes" to data.size))
+        Log.i(TAG, "Sending to ${targets.size} client(s): ${String(data)}")
+        targets.forEach { it.setValue(data) }
     }
 
     fun receiveFromClient(): Flow<ByteArray> = _messageFlow.map { it.data }

@@ -118,6 +118,11 @@ class CommunicationSDK(
         channels.first { it.connectionType == connectionType }.sendDataToClient(data)
     }
 
+    suspend fun sendDataToClients(connectionType: ConnectionType, data: ByteArray, clientIds: List<String>) {
+        logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("connection_type" to connectionType.name, "bytes" to data.size, "target_count" to clientIds.size))
+        channels.first { it.connectionType == connectionType }.sendDataToClients(data, clientIds)
+    }
+
     suspend fun receiveDataFromClient(connectionType: ConnectionType): Flow<ByteArray> =
         channels.first { it.connectionType == connectionType }.receiveDataFromClient()
 
