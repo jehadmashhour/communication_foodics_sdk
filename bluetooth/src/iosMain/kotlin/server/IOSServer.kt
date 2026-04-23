@@ -200,6 +200,12 @@ class IOSServer(
         manager.stopAdvertising()
     }
 
+    suspend fun stopServer() {
+        manager.removeAllServices()
+        services = listOf()
+        manager.stopAdvertising()
+    }
+
     fun sendToSubscribers(charUuid: Uuid, data: ByteArray) = sendToSubscribers(charUuid, data, emptyList())
 
     fun sendToSubscribers(charUuid: Uuid, data: ByteArray, targetIds: List<String>) {

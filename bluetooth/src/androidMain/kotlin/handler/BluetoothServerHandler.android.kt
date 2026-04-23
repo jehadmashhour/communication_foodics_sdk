@@ -5,6 +5,7 @@ import BluetoothConstants.CCCD_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.HELLO_PREFIX
+import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import BluetoothConstants.TAG
 import advertisement.AdvertisementSettings
@@ -145,6 +146,10 @@ actual class BluetoothServerHandler(
 
     suspend fun stop() {
         try {
+            try {
+                sendToClients(SERVER_STOP_SIGNAL.encodeToByteArray(), emptyList())
+                delay(100)
+            } catch (_: Exception) { }
             scope.cancel()
             scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
             advertiser.stop()

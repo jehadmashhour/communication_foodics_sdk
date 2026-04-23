@@ -3,6 +3,7 @@ package handler
 import BluetoothConstants.ADVERTISER_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
+import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import advertisement.AdvertisementSettings
 import advertisement.Advertiser
@@ -90,6 +91,10 @@ actual class BluetoothServerHandler(
     fun clientConnectionState(): Flow<Boolean> = iosServer.clientNames.map { it.isNotEmpty() }
 
     suspend fun stop() {
+        try {
+            sendToClients(SERVER_STOP_SIGNAL.encodeToByteArray(), emptyList())
+            delay(100)
+        } catch (_: Exception) { }
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         advertiser.stop()

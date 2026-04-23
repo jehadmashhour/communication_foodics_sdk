@@ -243,6 +243,10 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         onDeviceDisconnected?.invoke()
     }
 
+    override fun peripheral(peripheral: CBPeripheral, didModifyServices: List<*>) {
+        _disconnectEvent.tryEmit(Unit)
+    }
+
     // ---- RSSI -----------------------------------------------------------
 
     @ObjCSignatureOverride

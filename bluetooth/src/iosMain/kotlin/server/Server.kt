@@ -14,6 +14,6 @@ actual class Server(private val server: IOSServer) {
     }
 
     actual suspend fun stopServer() {
-        server.stopAdvertising()
+        server.stopServer()
     }
 }

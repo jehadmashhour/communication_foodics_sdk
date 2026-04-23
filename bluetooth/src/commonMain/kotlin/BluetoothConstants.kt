@@ -10,4 +10,5 @@ object BluetoothConstants {
 
     const val TAG = "BluetoothCommunicationChannel"
     const val HELLO_PREFIX = "__HELLO__:"
+    const val SERVER_STOP_SIGNAL = "__STOP__"
 }

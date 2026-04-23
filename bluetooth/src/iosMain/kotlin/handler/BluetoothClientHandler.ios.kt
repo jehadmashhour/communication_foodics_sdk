@@ -2,6 +2,7 @@ package handler
 
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
+import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import ConnectionQuality
 import client.Client
@@ -95,9 +96,12 @@ actual class BluetoothClientHandler(
     }
 
     suspend fun receiveFromServer(): Flow<ByteArray> = merge(
-        clientFromServerChar.getNotifications().onEach {
-            bytesReceived += it.size
-            logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to it.size))
+        clientFromServerChar.getNotifications().onEach { data ->
+            if (data.decodeToString().startsWith(SERVER_STOP_SIGNAL)) {
+                throw Exception("Server stopped")
+            }
+            bytesReceived += data.size
+            logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to data.size))
         },
         iosClient.disconnectEvent.map {
             logger?.warn(LOG_TITLE, "Server disconnected unexpectedly")

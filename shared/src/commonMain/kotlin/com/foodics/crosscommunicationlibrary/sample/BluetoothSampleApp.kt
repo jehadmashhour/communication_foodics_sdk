@@ -318,8 +318,9 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            status = "Disconnected: ${e.message}"
             connected = false
+            status = "Disconnected: ${e.message}"
+            scope.launch { try { sdk.disconnectClient(ConnectionType.BLUETOOTH) } catch (_: Exception) {} }
         }
     }
 
@@ -546,8 +547,9 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            clientStatus = "Disconnected: ${e.message}"
             clientConnected = false
+            clientStatus = "Disconnected: ${e.message}"
+            scope.launch { try { sdk.disconnectClient(ConnectionType.BLUETOOTH) } catch (_: Exception) {} }
         }
     }
 

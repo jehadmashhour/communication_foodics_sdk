@@ -39,7 +39,10 @@ class NotificationsRecords {
     private val notifications = mutableMapOf<Uuid, List<CBCentral>>()
 
     fun addCentral(uuid: Uuid, central: CBCentral) {
-        notifications[uuid] = (notifications[uuid] ?: emptyList()) + central
+        val current = notifications[uuid] ?: emptyList()
+        if (central !in current) {
+            notifications[uuid] = current + central
+        }
     }
 
     fun removeCentral(uuid: Uuid, central: CBCentral) {
