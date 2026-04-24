@@ -4,6 +4,7 @@ import BluetoothConstants.ADVERTISER_UUID
 import BluetoothConstants.CCCD_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
+import BluetoothConstants.CLIENT_DISCONNECT_SIGNAL
 import BluetoothConstants.HELLO_PREFIX
 import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
@@ -109,16 +110,25 @@ actual class BluetoothServerHandler(
         fromClientChar.value
             .onEach { data ->
                 val text = data.decodeToString()
-                if (text.startsWith(HELLO_PREFIX)) {
-                    val name = text.removePrefix(HELLO_PREFIX).trim()
-                    _connectedClients.value = _connectedClients.value + (clientId to BleClient(clientId, name))
-                    logger?.info(LOG_TITLE, "Client connected", mapOf("client_id" to clientId, "client_name" to name))
-                    Log.i(TAG, "Client $clientId identified as: $name")
-                } else {
-                    val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)
-                    _messageFlow.tryEmit(BleMessage(client, data))
-                    logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to client.name, "bytes" to data.size))
-                    Log.i(TAG, "Message from ${client.name}: ${String(data)}")
+                when {
+                    text.startsWith(HELLO_PREFIX) -> {
+                        val name = text.removePrefix(HELLO_PREFIX).trim()
+                        _connectedClients.value = _connectedClients.value + (clientId to BleClient(clientId, name))
+                        logger?.info(LOG_TITLE, "Client connected", mapOf("client_id" to clientId, "client_name" to name))
+                        Log.i(TAG, "Client $clientId identified as: $name")
+                    }
+                    text == CLIENT_DISCONNECT_SIGNAL -> {
+                        val name = _connectedClients.value[clientId]?.name ?: clientId
+                        _connectedClients.value = _connectedClients.value - clientId
+                        logger?.info(LOG_TITLE, "Client disconnected gracefully", mapOf("client_id" to clientId, "client_name" to name))
+                        Log.i(TAG, "Client $clientId ($name) disconnected gracefully")
+                    }
+                    else -> {
+                        val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)
+                        _messageFlow.tryEmit(BleMessage(client, data))
+                        logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to client.name, "bytes" to data.size))
+                        Log.i(TAG, "Message from ${client.name}: ${String(data)}")
+                    }
                 }
             }
             .launchIn(scope)

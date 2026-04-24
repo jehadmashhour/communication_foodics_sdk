@@ -2,6 +2,8 @@ package handler
 
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
+import BluetoothConstants.CLIENT_DISCONNECT_SIGNAL
+import BluetoothConstants.HELLO_PREFIX
 import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import ConnectionQuality
@@ -25,6 +27,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -96,13 +99,15 @@ actual class BluetoothClientHandler(
     }
 
     suspend fun receiveFromServer(): Flow<ByteArray> = merge(
-        clientFromServerChar.getNotifications().onEach { data ->
-            if (data.decodeToString().startsWith(SERVER_STOP_SIGNAL)) {
-                throw Exception("Server stopped")
+        clientFromServerChar.getNotifications()
+            .onEach { data ->
+                if (data.decodeToString().startsWith(SERVER_STOP_SIGNAL)) throw Exception("Server stopped")
             }
-            bytesReceived += data.size
-            logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to data.size))
-        },
+            .filter { data -> !data.decodeToString().startsWith(HELLO_PREFIX) }
+            .onEach { data ->
+                bytesReceived += data.size
+                logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to data.size))
+            },
         iosClient.disconnectEvent.map {
             logger?.warn(LOG_TITLE, "Server disconnected unexpectedly")
             throw Exception("Server disconnected")
@@ -142,6 +147,11 @@ actual class BluetoothClientHandler(
     }.flowOn(Dispatchers.IO)
 
     suspend fun disconnect() {
+        try {
+            if (::clientToServerChar.isInitialized) {
+                clientToServerChar.write(CLIENT_DISCONNECT_SIGNAL.encodeToByteArray(), WriteType.DEFAULT)
+            }
+        } catch (_: Exception) { }
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         bytesSent = 0L

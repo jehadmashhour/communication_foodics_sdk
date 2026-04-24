@@ -52,4 +52,8 @@ class NotificationsRecords {
     fun getCentrals(uuid: Uuid): List<CBCentral> {
         return notifications[uuid] ?: emptyList()
     }
+
+    fun clear() {
+        notifications.clear()
+    }
 }

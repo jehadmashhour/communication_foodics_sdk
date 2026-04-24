@@ -45,6 +45,7 @@ import scanner.IoTDevice
 import scanner.PeripheralDevice
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
 import platform.Foundation.NSData
@@ -146,19 +147,39 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         manager.stopScan()
         delay(200)
 
-        withTimeout(10_000) {
-            suspendCancellableCoroutine { continuation ->
-                onDeviceConnected = {
-                    onDeviceConnected = null
-                    if (continuation.isActive) continuation.resume(Unit)
+        // Android BLE stack sometimes refuses the first connection attempt when it already has
+        // an active central connection to this iOS device (dual-role scenario). Cancelling and
+        // re-issuing connectPeripheral resets the link-layer state and succeeds on retry.
+        val maxAttempts = 3
+        for (attempt in 1..maxAttempts) {
+            try {
+                withTimeout(4_000) {
+                    suspendCancellableCoroutine { continuation ->
+                        onDeviceConnected = { state ->
+                            onDeviceConnected = null
+                            if (continuation.isActive) {
+                                when (state) {
+                                    DeviceConnected -> continuation.resume(Unit)
+                                    DeviceDisconnected -> continuation.resumeWith(
+                                        Result.failure(Exception("Connection rejected by device"))
+                                    )
+                                }
+                            }
+                        }
+                        continuation.invokeOnCancellation {
+                            onDeviceConnected = null
+                            manager.cancelPeripheralConnection(peripheral)
+                        }
+                        manager.connectPeripheral(peripheral, null)
+                    }
                 }
-                continuation.invokeOnCancellation {
-                    onDeviceConnected = null
-                    manager.cancelPeripheralConnection(peripheral)
-                }
-                manager.connectPeripheral(peripheral, null)
+                return
+            } catch (e: TimeoutCancellationException) {
+                manager.cancelPeripheralConnection(peripheral)
+                if (attempt < maxAttempts) delay(1_000)
             }
         }
+        throw Exception("Connection failed: timed out after $maxAttempts attempts")
     }
 
     suspend fun disconnect() {

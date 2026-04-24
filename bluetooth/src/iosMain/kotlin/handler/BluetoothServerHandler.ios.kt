@@ -24,7 +24,9 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.take
 import server.*
 
 private const val LOG_TITLE = "BLE_SERVER"
@@ -90,6 +92,23 @@ actual class BluetoothServerHandler(
 
     fun clientConnectionState(): Flow<Boolean> = iosServer.clientNames.map { it.isNotEmpty() }
 
+    // Returns the centralId if the given device (identified by its peripheral UUID from scanning)
+    // is already connected to this iOS peripheral manager — used for bridge-mode detection.
+    fun bridgeCentralId(deviceId: String, deviceName: String): String? = iosServer.centralIdForDevice(deviceId, deviceName)
+
+    // Flow of raw bytes from a specific client, used when iOS acts as client via the server bridge.
+    // Throws when the client unsubscribes (disconnects).
+    fun receiveFromClientAsServer(centralId: String): Flow<ByteArray> = merge(
+        iosServer.receivedWrites
+            .filter { (id, charUuid, _) -> id == centralId && charUuid == CHAR_FROM_CLIENT_UUID }
+            .map { (_, _, data) -> data },
+        iosServer.centralDisconnectedEvent
+            .filter { it == centralId }
+            .take(1)
+            .onEach { throw Exception("Bridge connection lost") }
+            .map { byteArrayOf() }
+    )
+
     suspend fun stop() {
         try {
             sendToClients(SERVER_STOP_SIGNAL.encodeToByteArray(), emptyList())
@@ -99,6 +118,7 @@ actual class BluetoothServerHandler(
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         advertiser.stop()
         server.stopServer()
+        iosServer.resetState()
         logger?.info(LOG_TITLE, "BLE server stopped")
     }
 

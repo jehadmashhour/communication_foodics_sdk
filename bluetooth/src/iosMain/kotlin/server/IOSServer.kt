@@ -71,6 +71,10 @@ class IOSServer(
     private val _clientNames = MutableStateFlow<Map<String, String>>(emptyMap())
     val clientNames: StateFlow<Map<String, String>> = _clientNames.asStateFlow()
 
+    // Emits the centralId whenever a central unsubscribes (used for bridge disconnect detection)
+    private val _centralDisconnectedEvent = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    val centralDisconnectedEvent: SharedFlow<String> = _centralDisconnectedEvent.asSharedFlow()
+
     private var services = listOf<CBService>()
 
     override fun peripheralManagerDidUpdateState(peripheral: CBPeripheralManager) {
@@ -111,11 +115,18 @@ class IOSServer(
                 if (data.isNotEmpty()) {
                     val centralId = request.central.identifier.UUIDString
                     val text = data.decodeToString()
-                    if (text.startsWith(BluetoothConstants.HELLO_PREFIX)) {
-                        val name = text.removePrefix(BluetoothConstants.HELLO_PREFIX)
-                        _clientNames.value = _clientNames.value + (centralId to name)
-                    } else {
-                        _receivedWrites.tryEmit(Triple(centralId, request.characteristic().UUID.toUuid(), data))
+                    when {
+                        text.startsWith(BluetoothConstants.HELLO_PREFIX) -> {
+                            val name = text.removePrefix(BluetoothConstants.HELLO_PREFIX)
+                            _clientNames.value = _clientNames.value + (centralId to name)
+                        }
+                        text == BluetoothConstants.CLIENT_DISCONNECT_SIGNAL -> {
+                            _clientNames.value = _clientNames.value - centralId
+                            _centralDisconnectedEvent.tryEmit(centralId)
+                        }
+                        else -> {
+                            _receivedWrites.tryEmit(Triple(centralId, request.characteristic().UUID.toUuid(), data))
+                        }
                     }
                 }
             }
@@ -147,6 +158,7 @@ class IOSServer(
         notificationsRecords.removeCentral(didUnsubscribeFromCharacteristic.UUID.toUuid(), central)
         val centralId = central.identifier.UUIDString
         _clientNames.value = _clientNames.value - centralId
+        _centralDisconnectedEvent.tryEmit(centralId)
     }
 
     override fun peripheralManager(
@@ -205,6 +217,19 @@ class IOSServer(
         services = listOf()
         manager.stopAdvertising()
     }
+
+    fun resetState() {
+        _clientNames.value = emptyMap()
+        _connections.value = emptyMap()
+        notificationsRecords.clear()
+    }
+
+    // Looks up the centralId for a device, trying two strategies:
+    // 1. UUID match (peripheral.identifier == central.identifier for the same Android device, if the BLE address is stable).
+    // 2. Name match via the HELLO message — reliable because Android advertises and sends HELLO with the same display name.
+    fun centralIdForDevice(peripheralId: String, deviceName: String): String? =
+        _connections.value.keys.firstOrNull { it.identifier.UUIDString == peripheralId }?.identifier?.UUIDString
+            ?: _clientNames.value.entries.firstOrNull { (_, name) -> name == deviceName }?.key
 
     fun sendToSubscribers(charUuid: Uuid, data: ByteArray) = sendToSubscribers(charUuid, data, emptyList())
 
