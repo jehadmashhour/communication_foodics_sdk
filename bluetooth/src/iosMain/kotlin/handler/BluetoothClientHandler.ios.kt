@@ -25,6 +25,7 @@ import rssiToDistance
 import rssiToSignalLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -109,9 +110,10 @@ actual class BluetoothClientHandler(
                         val mtu = iosClient.mtu()
                         clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi:$mtu".encodeToByteArray(), WriteType.DEFAULT)
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    logger?.warn(LOG_TITLE, "RSSI reporting stopped", mapOf("error" to (e.message ?: "unknown")))
-                    break
+                    logger?.warn(LOG_TITLE, "QREP send failed, will retry next cycle", mapOf("error" to (e.message ?: "unknown")))
                 }
                 delay(3000)
             }
@@ -157,9 +159,15 @@ actual class BluetoothClientHandler(
 
     fun connectionQuality(): Flow<ConnectionQuality> = flow {
         var windowStart = (NSDate().timeIntervalSince1970 * 1000).toLong()
+        var smoothedRssi: Float? = null
+        val emaAlpha = 0.6f
         while (true) {
             delay(3000)
-            val rssi = iosClient.rssiFlow.value
+            val rawRssi = iosClient.rssiFlow.value
+            if (rawRssi != Int.MIN_VALUE) {
+                smoothedRssi = smoothedRssi?.let { emaAlpha * rawRssi + (1f - emaAlpha) * it } ?: rawRssi.toFloat()
+            }
+            val rssi = smoothedRssi?.toInt() ?: Int.MIN_VALUE
             val now = (NSDate().timeIntervalSince1970 * 1000).toLong()
             val windowSec = ((now - windowStart).coerceAtLeast(1)) / 1000.0
             val throughput = ((bytesSent + bytesReceived) / windowSec).toLong()

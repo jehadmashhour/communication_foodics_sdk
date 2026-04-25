@@ -63,6 +63,8 @@ actual class BluetoothServerHandler(
 
     private val _clientQuality = MutableStateFlow<Map<String, Float>>(emptyMap())
     private val _clientMtus = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val _clientSmoothedRssi = mutableMapOf<String, Float>()
+    private val emaAlpha = 0.6f
     private val clientReassemblers = mutableMapOf<String, ChunkReassembler>()
     private var serverChunkMsgId: Byte = 0
 
@@ -89,6 +91,7 @@ actual class BluetoothServerHandler(
                     Log.i(TAG, "Client disconnected: $name ($id)")
                     _clientQuality.value = _clientQuality.value - id
                     _clientMtus.value = _clientMtus.value - id
+                    _clientSmoothedRssi.remove(id)
                     clientReassemblers.remove(id)
                 }
                 _connectedClients.value = _connectedClients.value.filterKeys { it in activeIds }
@@ -146,14 +149,20 @@ actual class BluetoothServerHandler(
                             _connectedClients.value = _connectedClients.value - clientId
                             _clientQuality.value = _clientQuality.value - clientId
                             _clientMtus.value = _clientMtus.value - clientId
+                            _clientSmoothedRssi.remove(clientId)
                             clientReassemblers.remove(clientId)
                             logger?.info(LOG_TITLE, "Client disconnected gracefully", mapOf("client_id" to clientId, "client_name" to name))
                             Log.i(TAG, "Client $clientId ($name) disconnected gracefully")
                         }
                         text.startsWith(QUALITY_REPORT_PREFIX) -> {
                             val parts = text.removePrefix(QUALITY_REPORT_PREFIX).split(":")
-                            val rssi = parts[0].toIntOrNull() ?: Int.MIN_VALUE
+                            val rawRssi = parts[0].toIntOrNull() ?: Int.MIN_VALUE
                             val mtu = parts.getOrNull(1)?.toIntOrNull()
+                            if (rawRssi != Int.MIN_VALUE) {
+                                val prev = _clientSmoothedRssi[clientId]
+                                _clientSmoothedRssi[clientId] = prev?.let { emaAlpha * rawRssi + (1f - emaAlpha) * it } ?: rawRssi.toFloat()
+                            }
+                            val rssi = _clientSmoothedRssi[clientId]?.toInt() ?: rawRssi
                             _clientQuality.value = _clientQuality.value + (clientId to rssiToQuality(rssi))
                             if (mtu != null) _clientMtus.value = _clientMtus.value + (clientId to mtu)
                             logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_id" to clientId, "rssi_dbm" to rssi, "mtu" to (mtu ?: "unknown"), "signal_level" to rssiToSignalLevel(rssi).name))
@@ -229,6 +238,7 @@ actual class BluetoothServerHandler(
             _connectedClients.value = emptyMap()
             _clientQuality.value = emptyMap()
             _clientMtus.value = emptyMap()
+            _clientSmoothedRssi.clear()
             clientReassemblers.clear()
             logger?.info(LOG_TITLE, "BLE server stopped")
             Log.i(TAG, "Stopped BLE server & advertiser")

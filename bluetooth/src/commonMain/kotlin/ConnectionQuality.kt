@@ -40,9 +40,10 @@ fun signalLevelToQuality(level: SignalLevel): Float = when (level) {
 }
 
 // Log-distance path loss model: distance = 10 ^ ((txPower - rssi) / (10 * n))
-// txPower: RSSI at 1 metre (-59 dBm typical for BLE).
-// pathLossExponent: 2.7 is a reasonable default for indoor BLE (free-space = 2.0, obstructed = 3–4).
-fun rssiToDistance(rssi: Int, txPower: Int = -59, pathLossExponent: Double = 2.7): Double {
+// txPower: RSSI at 1 metre (-59 dBm typical for BLE chips).
+// pathLossExponent: 3.0 suits obstructed indoor environments (restaurants, offices).
+//   Free-space = 2.0, open office = 2.5–3.0, walls/equipment = 3.0–4.0.
+fun rssiToDistance(rssi: Int, txPower: Int = -59, pathLossExponent: Double = 3.0): Double {
     if (rssi >= 0 || rssi == Int.MIN_VALUE) return -1.0
     return 10.0.pow((txPower - rssi).toDouble() / (10.0 * pathLossExponent))
 }

@@ -32,10 +32,12 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -131,11 +133,12 @@ actual class BluetoothClientHandler(
             delay(3000)
             while (isActive) {
                 try {
-                    val rssi = client.readRssi()
+                    val rssi = withTimeoutOrNull(2000) { client.readRssi() } ?: Int.MIN_VALUE
                     clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi:$negotiatedMtu".encodeToByteArray(), WriteType.DEFAULT)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    logger?.warn(LOG_TITLE, "RSSI reporting stopped", mapOf("error" to (e.message ?: "unknown")))
-                    break
+                    logger?.warn(LOG_TITLE, "QREP send failed, will retry next cycle", mapOf("error" to (e.message ?: "unknown")))
                 }
                 delay(3000)
             }
@@ -186,9 +189,15 @@ actual class BluetoothClientHandler(
 
     fun connectionQuality(): Flow<ConnectionQuality> = flow {
         var windowStart = System.currentTimeMillis()
+        var smoothedRssi: Float? = null
+        val emaAlpha = 0.6f
         while (true) {
             delay(3000)
-            val rssi = client.readRssi()
+            val rawRssi = withTimeoutOrNull(2000) { client.readRssi() } ?: Int.MIN_VALUE
+            if (rawRssi != Int.MIN_VALUE) {
+                smoothedRssi = smoothedRssi?.let { emaAlpha * rawRssi + (1f - emaAlpha) * it } ?: rawRssi.toFloat()
+            }
+            val rssi = smoothedRssi?.toInt() ?: Int.MIN_VALUE
             val now = System.currentTimeMillis()
             val windowSec = ((now - windowStart).coerceAtLeast(1)) / 1000.0
             val throughput = ((bytesSent + bytesReceived) / windowSec).toLong()

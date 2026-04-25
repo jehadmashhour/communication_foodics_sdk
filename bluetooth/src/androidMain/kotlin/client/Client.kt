@@ -38,6 +38,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.CancellationException
 import sdk.client.main.callback.ClientBleGatt
 import sdk.core.data.BleGattConnectionPriority
 import sdk.core.data.GattConnectionState
@@ -71,6 +72,8 @@ actual class Client(
 
     suspend fun readRssi(): Int = try {
         client?.readRssi() ?: Int.MIN_VALUE
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Exception) {
         Int.MIN_VALUE
     }

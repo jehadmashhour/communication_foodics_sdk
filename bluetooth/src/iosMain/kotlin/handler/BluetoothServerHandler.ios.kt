@@ -52,6 +52,8 @@ actual class BluetoothServerHandler(
 
     private val _clientQuality = MutableStateFlow<Map<String, Float>>(emptyMap())
     private val _clientMtus = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val _clientSmoothedRssi = mutableMapOf<String, Float>()
+    private val emaAlpha = 0.6f
     private val clientReassemblers = mutableMapOf<String, ChunkReassembler>()
     private var serverChunkMsgId: Byte = 0
 
@@ -92,6 +94,7 @@ actual class BluetoothServerHandler(
                     logger?.info(LOG_TITLE, "Client disconnected", mapOf("client_id" to id))
                     _clientQuality.value = _clientQuality.value - id
                     _clientMtus.value = _clientMtus.value - id
+                    _clientSmoothedRssi.remove(id)
                     clientReassemblers.remove(id)
                 }
                 previousIds = currentIds
@@ -99,7 +102,12 @@ actual class BluetoothServerHandler(
             .launchIn(scope)
 
         iosServer.qualityReportEvents
-            .onEach { (centralId, rssi, mtu) ->
+            .onEach { (centralId, rawRssi, mtu) ->
+                if (rawRssi != Int.MIN_VALUE) {
+                    val prev = _clientSmoothedRssi[centralId]
+                    _clientSmoothedRssi[centralId] = prev?.let { emaAlpha * rawRssi + (1f - emaAlpha) * it } ?: rawRssi.toFloat()
+                }
+                val rssi = _clientSmoothedRssi[centralId]?.toInt() ?: rawRssi
                 _clientQuality.value = _clientQuality.value + (centralId to rssiToQuality(rssi))
                 if (mtu != null) _clientMtus.value = _clientMtus.value + (centralId to mtu)
                 val name = iosServer.clientNames.value[centralId] ?: centralId
@@ -182,6 +190,7 @@ actual class BluetoothServerHandler(
         iosServer.resetState()
         _clientQuality.value = emptyMap()
         _clientMtus.value = emptyMap()
+        _clientSmoothedRssi.clear()
         clientReassemblers.clear()
         logger?.info(LOG_TITLE, "BLE server stopped")
     }
