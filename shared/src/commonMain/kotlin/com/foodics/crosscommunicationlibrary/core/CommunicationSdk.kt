@@ -134,7 +134,11 @@ class CommunicationSDK(
 
     suspend fun stopAllServers() {
         logger?.info(LOG_TITLE, "Stopping all servers")
-        channels.forEach { it.stopServer() }
+        channels.forEach { channel ->
+            runCatching { channel.stopServer() }.onFailure { e ->
+                logger?.error(LOG_TITLE, "Error stopping ${channel.connectionType.name} server", e as? Exception)
+            }
+        }
     }
 
     suspend fun disconnectClient(connectionType: ConnectionType) {

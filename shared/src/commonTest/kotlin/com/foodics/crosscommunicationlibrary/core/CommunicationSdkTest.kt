@@ -2,10 +2,12 @@ package com.foodics.crosscommunicationlibrary.core
 
 import ConnectionType
 import kotlinx.coroutines.test.runTest
+import scanner.IoTDevice
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class CommunicationSdkTest {
@@ -168,5 +170,156 @@ class CommunicationSdkTest {
 
         assertTrue(result.isNotEmpty(), "scan should emit at least one value")
         assertTrue(result.all { it.isEmpty() }, "All emissions should be empty since fake channel returns no devices")
+    }
+
+    @Test
+    fun scan_singleChannel_emitsDiscoveredDevices() = runTest {
+        val device = IoTDevice(
+            name = "POS Terminal",
+            address = "AA:BB:CC:DD:EE:FF",
+            connectionType = ConnectionType.BLUETOOTH,
+            id = "device-1"
+        )
+        val channel = FakeCommunicationChannel(ConnectionType.BLUETOOTH, scanDevices = listOf(device))
+        val sdk = sdkWith(channel)
+
+        val result = mutableListOf<List<DiscoveredDevice>>()
+        sdk.scan().collect { result.add(it) }
+
+        val lastEmission = result.last()
+        assertEquals(1, lastEmission.size)
+        assertEquals("device-1", lastEmission.first().id)
+        assertEquals("POS Terminal", lastEmission.first().name)
+    }
+
+    @Test
+    fun scan_twoChannels_sameDeviceId_mergesIntoOneEntry() = runTest {
+        val bleDevice = IoTDevice(
+            name = "Shared Device",
+            address = "AA:BB:CC:DD:EE:FF",
+            connectionType = ConnectionType.BLUETOOTH,
+            id = "shared-id"
+        )
+        val lanDevice = IoTDevice(
+            name = "Shared Device",
+            address = "192.168.1.1",
+            connectionType = ConnectionType.LAN,
+            id = "shared-id"
+        )
+        val bleChannel = FakeCommunicationChannel(ConnectionType.BLUETOOTH, scanDevices = listOf(bleDevice))
+        val lanChannel = FakeCommunicationChannel(ConnectionType.LAN, scanDevices = listOf(lanDevice))
+        val sdk = sdkWith(bleChannel, lanChannel)
+
+        val result = mutableListOf<List<DiscoveredDevice>>()
+        sdk.scan().collect { result.add(it) }
+
+        val lastEmission = result.last()
+        assertEquals(1, lastEmission.size, "Same device ID from two channels should be merged into one entry")
+        val merged = lastEmission.first()
+        assertEquals("shared-id", merged.id)
+        assertTrue(ConnectionType.BLUETOOTH in merged.connectionTypes)
+        assertTrue(ConnectionType.LAN in merged.connectionTypes)
+    }
+
+    @Test
+    fun scan_twoChannels_differentDeviceIds_emitsBothDevices() = runTest {
+        val bleDevice = IoTDevice(
+            name = "BLE Device",
+            address = "AA:BB:CC:DD:EE:FF",
+            connectionType = ConnectionType.BLUETOOTH,
+            id = "ble-id"
+        )
+        val lanDevice = IoTDevice(
+            name = "LAN Device",
+            address = "192.168.1.1",
+            connectionType = ConnectionType.LAN,
+            id = "lan-id"
+        )
+        val bleChannel = FakeCommunicationChannel(ConnectionType.BLUETOOTH, scanDevices = listOf(bleDevice))
+        val lanChannel = FakeCommunicationChannel(ConnectionType.LAN, scanDevices = listOf(lanDevice))
+        val sdk = sdkWith(bleChannel, lanChannel)
+
+        val result = mutableListOf<List<DiscoveredDevice>>()
+        sdk.scan().collect { result.add(it) }
+
+        val lastEmission = result.last()
+        assertEquals(2, lastEmission.size, "Two different device IDs should produce two entries")
+        val ids = lastEmission.map { it.id }.toSet()
+        assertTrue("ble-id" in ids)
+        assertTrue("lan-id" in ids)
+    }
+
+    @Test
+    fun scan_deviceWithNullId_isExcluded() = runTest {
+        val validDevice = IoTDevice(
+            name = "Valid Device",
+            address = "AA:BB:CC:DD:EE:FF",
+            connectionType = ConnectionType.BLUETOOTH,
+            id = "valid-id"
+        )
+        val nullIdDevice = IoTDevice(
+            name = "No-ID Device",
+            address = "11:22:33:44:55:66",
+            connectionType = ConnectionType.BLUETOOTH,
+            id = null
+        )
+        val channel = FakeCommunicationChannel(
+            ConnectionType.BLUETOOTH,
+            scanDevices = listOf(validDevice, nullIdDevice)
+        )
+        val sdk = sdkWith(channel)
+
+        val result = mutableListOf<List<DiscoveredDevice>>()
+        sdk.scan().collect { result.add(it) }
+
+        val lastEmission = result.last()
+        assertEquals(1, lastEmission.size, "Device with null id should be excluded from scan results")
+        assertEquals("valid-id", lastEmission.first().id)
+    }
+
+    // ── channel-not-found ────────────────────────────────────────────────────
+
+    @Test
+    fun sendDataToServer_withUnknownConnectionType_throws() = runTest {
+        val bleChannel = FakeCommunicationChannel(ConnectionType.BLUETOOTH)
+        val sdk = sdkWith(bleChannel)
+
+        assertFailsWith<NoSuchElementException> {
+            sdk.sendDataToServer(ConnectionType.LAN, "data".encodeToByteArray())
+        }
+    }
+
+    @Test
+    fun disconnectClient_withUnknownConnectionType_throws() = runTest {
+        val bleChannel = FakeCommunicationChannel(ConnectionType.BLUETOOTH)
+        val sdk = sdkWith(bleChannel)
+
+        assertFailsWith<NoSuchElementException> {
+            sdk.disconnectClient(ConnectionType.LAN)
+        }
+    }
+
+    @Test
+    fun sendDataToClient_withUnknownConnectionType_throws() = runTest {
+        val bleChannel = FakeCommunicationChannel(ConnectionType.BLUETOOTH)
+        val sdk = sdkWith(bleChannel)
+
+        assertFailsWith<NoSuchElementException> {
+            sdk.sendDataToClient(ConnectionType.LAN, "data".encodeToByteArray())
+        }
+    }
+
+    // ── stopAllServers exception isolation ───────────────────────────────────
+
+    @Test
+    fun stopAllServers_whenOneChannelThrows_stillStopsOtherChannels() = runTest {
+        val throwingChannel = FakeCommunicationChannel(ConnectionType.BLUETOOTH, stopThrows = true)
+        val normalChannel  = FakeCommunicationChannel(ConnectionType.LAN)
+        val sdk = sdkWith(throwingChannel, normalChannel)
+
+        runCatching { sdk.stopAllServers() }
+
+        assertTrue(normalChannel.stopServerCalled, "Normal channel should still be stopped even if another throws")
+        assertFalse(throwingChannel.stopServerCalled, "Throwing channel records false because it threw before setting the flag")
     }
 }

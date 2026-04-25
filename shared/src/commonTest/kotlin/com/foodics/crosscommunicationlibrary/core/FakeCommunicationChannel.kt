@@ -9,7 +9,9 @@ import kotlinx.coroutines.flow.flowOf
 import scanner.IoTDevice
 
 class FakeCommunicationChannel(
-    override val connectionType: ConnectionType
+    override val connectionType: ConnectionType,
+    private val scanDevices: List<IoTDevice> = emptyList(),
+    private val stopThrows: Boolean = false
 ) : CommunicationChannel {
 
     var startServerCalled = false
@@ -28,7 +30,7 @@ class FakeCommunicationChannel(
         lastServerIdentifier = identifier
     }
 
-    override fun scan(): Flow<List<IoTDevice>> = flowOf(emptyList())
+    override fun scan(): Flow<List<IoTDevice>> = flowOf(scanDevices)
 
     override suspend fun connectToServer(device: IoTDevice) {}
 
@@ -45,6 +47,7 @@ class FakeCommunicationChannel(
     override suspend fun receiveDataFromClient(): Flow<ByteArray> = emptyFlow()
 
     override suspend fun stopServer() {
+        if (stopThrows) throw RuntimeException("Simulated stop failure")
         stopServerCalled = true
     }
 

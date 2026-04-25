@@ -123,4 +123,74 @@ class ConnectionQualityTest {
         assertTrue(SignalLevel.POOR in values)
         assertTrue(SignalLevel.UNKNOWN in values)
     }
+
+    // ── signalLevelToQuality ─────────────────────────────────────────────────
+
+    @Test
+    fun signalLevelToQuality_excellent_returnsOne() {
+        assertEquals(1.0f, signalLevelToQuality(SignalLevel.EXCELLENT))
+    }
+
+    @Test
+    fun signalLevelToQuality_good_returnsThreeQuarters() {
+        assertEquals(0.75f, signalLevelToQuality(SignalLevel.GOOD))
+    }
+
+    @Test
+    fun signalLevelToQuality_fair_returnsHalf() {
+        assertEquals(0.5f, signalLevelToQuality(SignalLevel.FAIR))
+    }
+
+    @Test
+    fun signalLevelToQuality_poor_returnsQuarter() {
+        assertEquals(0.25f, signalLevelToQuality(SignalLevel.POOR))
+    }
+
+    @Test
+    fun signalLevelToQuality_unknown_returnsZero() {
+        assertEquals(0.0f, signalLevelToQuality(SignalLevel.UNKNOWN))
+    }
+
+    // ── RSSI → quality pipeline ──────────────────────────────────────────────
+
+    @Test
+    fun rssiPipeline_excellentBoundary_returnsOne() {
+        assertEquals(1.0f, signalLevelToQuality(rssiToSignalLevel(-60)))
+        assertEquals(1.0f, signalLevelToQuality(rssiToSignalLevel(-50)))
+    }
+
+    @Test
+    fun rssiPipeline_goodBoundary_returnsThreeQuarters() {
+        assertEquals(0.75f, signalLevelToQuality(rssiToSignalLevel(-61)))
+        assertEquals(0.75f, signalLevelToQuality(rssiToSignalLevel(-70)))
+    }
+
+    @Test
+    fun rssiPipeline_fairBoundary_returnsHalf() {
+        assertEquals(0.5f, signalLevelToQuality(rssiToSignalLevel(-71)))
+        assertEquals(0.5f, signalLevelToQuality(rssiToSignalLevel(-80)))
+    }
+
+    @Test
+    fun rssiPipeline_poorBoundary_returnsQuarter() {
+        assertEquals(0.25f, signalLevelToQuality(rssiToSignalLevel(-81)))
+        assertEquals(0.25f, signalLevelToQuality(rssiToSignalLevel(-100)))
+    }
+
+    @Test
+    fun rssiPipeline_minValue_returnsZero() {
+        assertEquals(0.0f, signalLevelToQuality(rssiToSignalLevel(Int.MIN_VALUE)))
+    }
+
+    @Test
+    fun rssiPipeline_qualityIsMonotonicallyNonIncreasing() {
+        val rssiValues = listOf(-50, -61, -71, -81, Int.MIN_VALUE)
+        val qualities = rssiValues.map { signalLevelToQuality(rssiToSignalLevel(it)) }
+        for (i in 0 until qualities.size - 1) {
+            assertTrue(
+                qualities[i] >= qualities[i + 1],
+                "Quality should not increase as RSSI weakens: $qualities"
+            )
+        }
+    }
 }
