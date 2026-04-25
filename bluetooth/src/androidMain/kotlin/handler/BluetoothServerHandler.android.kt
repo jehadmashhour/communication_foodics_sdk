@@ -82,6 +82,7 @@ actual class BluetoothServerHandler(
                     val name = _connectedClients.value[id]?.name ?: id
                     logger?.info(LOG_TITLE, "Client disconnected", mapOf("client_id" to id, "client_name" to name))
                     Log.i(TAG, "Client disconnected: $name ($id)")
+                    _clientQuality.value = _clientQuality.value - id
                 }
                 _connectedClients.value = _connectedClients.value.filterKeys { it in activeIds }
                 toClientChars.keys.retainAll(activeIds)
@@ -133,7 +134,9 @@ actual class BluetoothServerHandler(
                     }
                     text.startsWith(QUALITY_REPORT_PREFIX) -> {
                         val rssi = text.removePrefix(QUALITY_REPORT_PREFIX).toIntOrNull() ?: Int.MIN_VALUE
-                        _clientQuality.value = _clientQuality.value + (clientId to signalLevelToQuality(rssiToSignalLevel(rssi)))
+                        val level = rssiToSignalLevel(rssi)
+                        _clientQuality.value = _clientQuality.value + (clientId to signalLevelToQuality(level))
+                        logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_id" to clientId, "rssi_dbm" to rssi, "signal_level" to level.name))
                     }
                     else -> {
                         val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)

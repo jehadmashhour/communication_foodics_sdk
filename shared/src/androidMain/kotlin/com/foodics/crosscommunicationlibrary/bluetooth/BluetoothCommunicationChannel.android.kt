@@ -8,6 +8,9 @@ import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
+import com.foodics.crosscommunicationlibrary.logger.debug
+import com.foodics.crosscommunicationlibrary.logger.info
+import com.foodics.crosscommunicationlibrary.logger.warn
 import BluetoothConstants.BRIDGE_C2S_PREFIX
 import BluetoothConstants.BRIDGE_CLIENT_ID
 import BluetoothConstants.BRIDGE_DISCONNECT_PREFIX
@@ -34,6 +37,8 @@ import kotlinx.coroutines.launch
 import model.BleClient
 import model.BleMessage
 import scanner.IoTDevice
+
+private const val LOG_TITLE = "BLE_CHANNEL"
 
 actual class BluetoothCommunicationChannel(
     private val context: Context,
@@ -73,9 +78,12 @@ actual class BluetoothCommunicationChannel(
                     text.startsWith(BRIDGE_INIT_PREFIX) -> {
                         val name = text.removePrefix(BRIDGE_INIT_PREFIX)
                         _bridgeClient.value = BleClient(BRIDGE_CLIENT_ID, name)
+                        logger?.info(LOG_TITLE, "Bridge client connected", mapOf("client_name" to name))
                     }
                     text.startsWith(BRIDGE_DISCONNECT_PREFIX) -> {
+                        val prevName = _bridgeClient.value?.name ?: BRIDGE_CLIENT_ID
                         _bridgeClient.value = null
+                        logger?.info(LOG_TITLE, "Bridge client disconnected", mapOf("client_name" to prevName))
                     }
                     text.startsWith(BRIDGE_C2S_PREFIX) -> {
                         val stripped = data.copyOfRange(BRIDGE_C2S_PREFIX.length, data.size)
@@ -83,9 +91,11 @@ actual class BluetoothCommunicationChannel(
                         if (strippedText.startsWith(HELLO_PREFIX)) {
                             val name = strippedText.removePrefix(HELLO_PREFIX).trim()
                             _bridgeClient.value = BleClient(BRIDGE_CLIENT_ID, name)
+                            logger?.info(LOG_TITLE, "Bridge client identified via HELLO", mapOf("client_name" to name))
                         } else {
                             val client = _bridgeClient.value ?: BleClient(BRIDGE_CLIENT_ID, BRIDGE_CLIENT_ID)
                             _bridgeMessages.tryEmit(BleMessage(client, stripped))
+                            logger?.debug(LOG_TITLE, "Bridge message routed to server flow", mapOf("client_name" to client.name, "bytes" to stripped.size))
                         }
                     }
                 }
@@ -134,6 +144,7 @@ actual class BluetoothCommunicationChannel(
     actual override suspend fun stopServer() = serverHandler.stop()
 
     actual override suspend fun disconnectClient() {
+        logger?.info(LOG_TITLE, "Disconnecting client", mapOf("bridge_active" to (_bridgeClient.value != null)))
         bridgeMonitorScope?.cancel()
         bridgeMonitorScope = null
         _bridgeClient.value = null

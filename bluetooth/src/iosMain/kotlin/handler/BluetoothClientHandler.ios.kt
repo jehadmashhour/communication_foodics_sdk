@@ -102,7 +102,10 @@ actual class BluetoothClientHandler(
                     if (rssi != Int.MIN_VALUE) {
                         clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi".encodeToByteArray(), WriteType.DEFAULT)
                     }
-                } catch (_: Exception) { break }
+                } catch (e: Exception) {
+                    logger?.warn(LOG_TITLE, "RSSI reporting stopped", mapOf("error" to (e.message ?: "unknown")))
+                    break
+                }
                 delay(3000)
             }
         }

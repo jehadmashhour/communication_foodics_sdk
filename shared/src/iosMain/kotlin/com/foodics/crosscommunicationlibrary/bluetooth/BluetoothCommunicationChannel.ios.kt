@@ -6,6 +6,8 @@ import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
+import com.foodics.crosscommunicationlibrary.logger.info
+import com.foodics.crosscommunicationlibrary.logger.warn
 import BluetoothConstants.BRIDGE_C2S_PREFIX
 import BluetoothConstants.BRIDGE_DISCONNECT_PREFIX
 import BluetoothConstants.BRIDGE_INIT_PREFIX
@@ -20,8 +22,10 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import scanner.IoTDevice
 
+private const val LOG_TITLE = "BLE_CHANNEL"
+
 actual class BluetoothCommunicationChannel actual constructor(
-    logger: CommunicationLogger?
+    private val logger: CommunicationLogger?
 ) : CommunicationChannel {
     private val serverHandler = BluetoothServerHandler(logger)
     private val clientHandler = BluetoothClientHandler(logger)
@@ -48,8 +52,7 @@ actual class BluetoothCommunicationChannel actual constructor(
         val bridgeId = serverHandler.bridgeCentralId(deviceId, device.name)
         if (bridgeId != null) {
             serverBridgeId = bridgeId
-            // Announce bridge to Android so it can route our incoming messages to its server flow
-            // and add us to its connected-clients list.
+            logger?.info(LOG_TITLE, "Bridge mode activated — device already connected to our server", mapOf("device_name" to device.name, "bridge_id" to bridgeId, "server_name" to myServerName))
             val initMsg = "$BRIDGE_INIT_PREFIX$myServerName"
             serverHandler.sendToClients(initMsg.encodeToByteArray(), listOf(bridgeId))
             return
@@ -60,6 +63,8 @@ actual class BluetoothCommunicationChannel actual constructor(
             val retryBridgeId = serverHandler.bridgeCentralId(deviceId, device.name)
             if (retryBridgeId != null) {
                 serverBridgeId = retryBridgeId
+                logger?.warn(LOG_TITLE, "Direct connect failed, switching to bridge mode", mapOf("device_name" to device.name, "error" to (e.message ?: "unknown")))
+                logger?.info(LOG_TITLE, "Bridge mode activated via retry", mapOf("bridge_id" to retryBridgeId, "server_name" to myServerName))
                 val initMsg = "$BRIDGE_INIT_PREFIX$myServerName"
                 serverHandler.sendToClients(initMsg.encodeToByteArray(), listOf(retryBridgeId))
                 return
@@ -106,6 +111,7 @@ actual class BluetoothCommunicationChannel actual constructor(
     actual override suspend fun disconnectClient() {
         val bridgeId = serverBridgeId
         if (bridgeId != null) {
+            logger?.info(LOG_TITLE, "Disconnecting from bridge", mapOf("bridge_id" to bridgeId))
             serverBridgeId = null
             try {
                 serverHandler.sendToClients(BRIDGE_DISCONNECT_PREFIX.encodeToByteArray(), listOf(bridgeId))

@@ -11,6 +11,7 @@ import ClientQuality
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.info
+import com.foodics.crosscommunicationlibrary.logger.warn
 import model.BleClient
 import model.BleMessage
 import rssiToSignalLevel
@@ -82,7 +83,10 @@ actual class BluetoothServerHandler(
 
         iosServer.qualityReportEvents
             .onEach { (centralId, rssi) ->
-                _clientQuality.value = _clientQuality.value + (centralId to signalLevelToQuality(rssiToSignalLevel(rssi)))
+                val level = rssiToSignalLevel(rssi)
+                _clientQuality.value = _clientQuality.value + (centralId to signalLevelToQuality(level))
+                val name = iosServer.clientNames.value[centralId] ?: centralId
+                logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_name" to name, "rssi_dbm" to rssi, "signal_level" to level.name))
             }
             .launchIn(scope)
 
@@ -126,7 +130,10 @@ actual class BluetoothServerHandler(
         iosServer.centralDisconnectedEvent
             .filter { it == centralId }
             .take(1)
-            .onEach { throw Exception("Bridge connection lost") }
+            .onEach {
+                logger?.warn(LOG_TITLE, "Bridge connection lost", mapOf("central_id" to centralId))
+                throw Exception("Bridge connection lost")
+            }
             .map { byteArrayOf() }
     )
 
