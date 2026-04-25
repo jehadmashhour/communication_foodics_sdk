@@ -42,6 +42,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.unit.dp
 import ClientQuality
 import com.foodics.crosscommunicationlibrary.core.CommunicationSDK
@@ -96,10 +97,11 @@ private fun ModeSelectionScreen(onServer: () -> Unit, onClient: () -> Unit, onDu
         Button(onClick = onClient, modifier = Modifier.fillMaxWidth()) {
             Text("Client")
         }
-        Spacer(Modifier.height(16.dp))
-        Button(onClick = onDual, modifier = Modifier.fillMaxWidth()) {
-            Text("Server + Client")
-        }
+// TODO: re-enable dual mode button when ready
+//        Spacer(Modifier.height(16.dp))
+//        Button(onClick = onDual, modifier = Modifier.fillMaxWidth()) {
+//            Text("Server + Client")
+//        }
     }
 }
 
@@ -271,6 +273,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             append("  (max: ${serverPermittedSize}B)")
             if (willChunk) append("  — CHUNKS")
         }
+        val serverFocusManager = LocalFocusManager.current
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = input,
@@ -283,6 +286,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                 onClick = {
                     val msg = input.trim()
                     input = ""
+                    serverFocusManager.clearFocus()
                     scope.launch {
                         sdk.sendDataToClients(ConnectionType.BLUETOOTH, msg.encodeToByteArray(), selectedClientIds.toList())
                         messages = messages + "Me: $msg"
@@ -472,6 +476,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                 append("  (max: ${clientPermittedSize}B)")
                 if (clientWillChunk) append("  — CHUNKS")
             }
+            val clientFocusManager = LocalFocusManager.current
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = input,
@@ -483,6 +488,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                     onClick = {
                         val msg = input.trim()
                         input = ""
+                        clientFocusManager.clearFocus()
                         scope.launch {
                             sdk.sendDataToServer(ConnectionType.BLUETOOTH, msg.encodeToByteArray())
                             messages = messages + "Me: $msg"
@@ -762,6 +768,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                     append("  (max: ${dualServerPermittedSize}B)")
                     if (dualServerWillChunk) append("  — CHUNKS")
                 }
+                val dualServerFocusManager = LocalFocusManager.current
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     OutlinedTextField(
                         value = serverInput,
@@ -775,6 +782,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                         onClick = {
                             val msg = serverInput.trim()
                             serverInput = ""
+                            dualServerFocusManager.clearFocus()
                             scope.launch {
                                 sdk.sendDataToClients(ConnectionType.BLUETOOTH, msg.encodeToByteArray(), selectedClientIds.toList())
                                 serverMessages = serverMessages + "Me→clients: $msg"
@@ -878,6 +886,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                     append("  (max: ${dualClientPermittedSize}B)")
                     if (dualClientWillChunk) append("  — CHUNKS")
                 }
+                val dualClientFocusManager = LocalFocusManager.current
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     OutlinedTextField(
                         value = clientInput,
@@ -891,6 +900,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                         onClick = {
                             val msg = clientInput.trim()
                             clientInput = ""
+                            dualClientFocusManager.clearFocus()
                             scope.launch {
                                 sdk.sendDataToServer(ConnectionType.BLUETOOTH, msg.encodeToByteArray())
                                 clientMessages = clientMessages + "Me→server: $msg"

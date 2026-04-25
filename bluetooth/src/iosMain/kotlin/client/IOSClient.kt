@@ -364,16 +364,17 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         val serviceData =
             serviceDataMap?.get(ADVERTISER_UUID.toCBUUID())?.toByteArray()?.decodeToString()
 
-        // With split advertising (serviceUuid in adv PDU, serviceData in scan response), iOS fires
-        // this callback twice. Skip the first event (no serviceData yet) to avoid a temporary
-        // "Unknown" entry that would appear until the scan response arrives.
-        if (serviceData == null) return
+        // ---- 2. Local Name from advertisement ----
+        val localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
+
+        // Android split-advertising fires this callback twice: first with only the service UUID
+        // (no payload), then again with service data in the scan response. Skip the first event.
+        // iOS peripherals never use CBAdvertisementDataServiceDataKey — they carry name|identifier
+        // in CBAdvertisementDataLocalNameKey, so we must NOT skip when localName is present.
+        if (serviceData == null && localName == null) return
 
         val nameFromServiceData = serviceData?.split("|")?.firstOrNull()
         val identifierFromServiceData = serviceData?.split("|")?.getOrNull(1)
-
-        // ---- 2. Local Name from advertisement ----
-        val localName = advertisementData[CBAdvertisementDataLocalNameKey] as? String
 
         val nameFromLocalName = localName?.split("|")?.firstOrNull()
         val identifierFromLocalName = localName?.split("|")?.getOrNull(1)
