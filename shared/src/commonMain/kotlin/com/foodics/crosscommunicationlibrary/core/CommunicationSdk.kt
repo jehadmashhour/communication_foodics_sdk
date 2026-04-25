@@ -164,6 +164,9 @@ class CommunicationSDK(
     fun serverClientsQuality(connectionType: ConnectionType): Flow<List<ClientQuality>> =
         channels.first { it.connectionType == connectionType }.serverClientsQuality()
 
+    fun serverPermittedMessageSize(connectionType: ConnectionType): Flow<Int> =
+        channels.first { it.connectionType == connectionType }.serverPermittedMessageSize()
+
     companion object {
         fun builder(): CommunicationSdkBuilder = CommunicationSdkBuilder()
     }

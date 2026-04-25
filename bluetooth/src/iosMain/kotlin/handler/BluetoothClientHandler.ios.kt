@@ -1,5 +1,7 @@
 package handler
 
+import BleChunker
+import ChunkReassembler
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.CLIENT_DISCONNECT_SIGNAL
@@ -34,6 +36,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import platform.Foundation.*
@@ -56,6 +59,9 @@ actual class BluetoothClientHandler(
 
     private var bytesSent = 0L
     private var bytesReceived = 0L
+
+    private val inboundReassembler = ChunkReassembler()
+    private var outboundMsgId: Byte = 0
 
     fun scan(): Flow<List<IoTDevice>> {
         logger?.info(LOG_TITLE, "BLE scan started")
@@ -100,7 +106,8 @@ actual class BluetoothClientHandler(
                 try {
                     val rssi = iosClient.rssiFlow.value
                     if (rssi != Int.MIN_VALUE) {
-                        clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi".encodeToByteArray(), WriteType.DEFAULT)
+                        val mtu = iosClient.mtu()
+                        clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi:$mtu".encodeToByteArray(), WriteType.DEFAULT)
                     }
                 } catch (e: Exception) {
                     logger?.warn(LOG_TITLE, "RSSI reporting stopped", mapOf("error" to (e.message ?: "unknown")))
@@ -112,7 +119,15 @@ actual class BluetoothClientHandler(
     }
 
     suspend fun sendToServer(data: ByteArray, writeType: WriteType) {
-        clientToServerChar.write(data, writeType)
+        val mtu = iosClient.mtu()
+        val writePayloadSize = (mtu - 3).coerceAtLeast(20)
+        if (data.size <= writePayloadSize) {
+            clientToServerChar.write(data, writeType)
+        } else {
+            val chunks = BleChunker.buildChunks(data, writePayloadSize, outboundMsgId++)
+            logger?.debug(LOG_TITLE, "Sending chunked data to server", mapOf("bytes" to data.size, "chunks" to chunks.size, "mtu" to mtu))
+            chunks.forEach { chunk -> clientToServerChar.write(chunk, writeType) }
+        }
         bytesSent += data.size
         logger?.debug(LOG_TITLE, "Sent data to server", mapOf("bytes" to data.size))
     }
@@ -126,6 +141,9 @@ actual class BluetoothClientHandler(
             .filter { data ->
                 val text = data.decodeToString()
                 !text.startsWith(HELLO_PREFIX)
+            }
+            .mapNotNull { data ->
+                if (BleChunker.isChunk(data)) inboundReassembler.process(data) else data
             }
             .onEach { data ->
                 bytesReceived += data.size

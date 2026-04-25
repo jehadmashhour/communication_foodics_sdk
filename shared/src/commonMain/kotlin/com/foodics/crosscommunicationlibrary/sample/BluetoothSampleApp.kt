@@ -115,6 +115,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     var connectedClients by remember { mutableStateOf(listOf<ConnectedClient>()) }
     var selectedClientIds by remember { mutableStateOf(emptySet<String>()) }
     var serverClientsQuality by remember { mutableStateOf(listOf<ClientQuality>()) }
+    var serverPermittedSize by remember { mutableStateOf(20) }
     val prefix = remember { devicePlatformPrefix() }
     val maxNameLength = 27 - prefix.length - 1
 
@@ -163,6 +164,10 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     LaunchedEffect(running) {
         if (!running) { serverClientsQuality = emptyList(); return@LaunchedEffect }
         sdk.serverClientsQuality(ConnectionType.BLUETOOTH).collect { serverClientsQuality = it }
+    }
+
+    LaunchedEffect(Unit) {
+        sdk.serverPermittedMessageSize(ConnectionType.BLUETOOTH).collect { serverPermittedSize = it }
     }
 
     Column(
@@ -259,13 +264,18 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             }
         }
 
-        val sendLabel = if (selectedClientIds.isEmpty()) "Message to all clients"
-                        else "Message to ${selectedClientIds.size} client(s)"
+        val inputBytes = input.encodeToByteArray().size
+        val willChunk = inputBytes > serverPermittedSize
+        val sendLabel = buildString {
+            append(if (selectedClientIds.isEmpty()) "Message to all clients" else "Message to ${selectedClientIds.size} client(s)")
+            append("  (max: ${serverPermittedSize}B)")
+            if (willChunk) append("  — CHUNKS")
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(
                 value = input,
                 onValueChange = { input = it },
-                label = { Text(sendLabel) },
+                label = { Text(sendLabel, color = if (willChunk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) },
                 modifier = Modifier.weight(1f),
                 enabled = running && connectedClients.isNotEmpty()
             )
@@ -454,11 +464,19 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
                 }
             }
 
+            val clientPermittedSize = (quality?.mtuBytes ?: 23) - 3
+            val clientInputBytes = input.encodeToByteArray().size
+            val clientWillChunk = clientInputBytes > clientPermittedSize
+            val clientSendLabel = buildString {
+                append("Message to server")
+                append("  (max: ${clientPermittedSize}B)")
+                if (clientWillChunk) append("  — CHUNKS")
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
-                    label = { Text("Message to server") },
+                    label = { Text(clientSendLabel, color = if (clientWillChunk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) },
                     modifier = Modifier.weight(1f)
                 )
                 Button(
@@ -519,6 +537,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     var clientQuality by remember { mutableStateOf<ConnectionQuality?>(null) }
     var clientQualityBar by remember { mutableStateOf(0f) }
     var serverClientsQuality by remember { mutableStateOf(listOf<ClientQuality>()) }
+    var dualServerPermittedSize by remember { mutableStateOf(20) }
 
     val startServer = rememberBluetoothEnableLauncher {
         scope.launch {
@@ -605,6 +624,10 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     LaunchedEffect(serverRunning) {
         if (!serverRunning) { serverClientsQuality = emptyList(); return@LaunchedEffect }
         sdk.serverClientsQuality(ConnectionType.BLUETOOTH).collect { serverClientsQuality = it }
+    }
+
+    LaunchedEffect(Unit) {
+        sdk.serverPermittedMessageSize(ConnectionType.BLUETOOTH).collect { dualServerPermittedSize = it }
     }
 
     Column(
@@ -732,13 +755,18 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
             }
 
             item {
-                val dualSendLabel = if (selectedClientIds.isEmpty()) "To all clients"
-                                    else "To ${selectedClientIds.size} client(s)"
+                val dualServerInputBytes = serverInput.encodeToByteArray().size
+                val dualServerWillChunk = dualServerInputBytes > dualServerPermittedSize
+                val dualSendLabel = buildString {
+                    append(if (selectedClientIds.isEmpty()) "To all clients" else "To ${selectedClientIds.size} client(s)")
+                    append("  (max: ${dualServerPermittedSize}B)")
+                    if (dualServerWillChunk) append("  — CHUNKS")
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     OutlinedTextField(
                         value = serverInput,
                         onValueChange = { serverInput = it },
-                        label = { Text(dualSendLabel) },
+                        label = { Text(dualSendLabel, color = if (dualServerWillChunk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) },
                         modifier = Modifier.weight(1f),
                         enabled = serverRunning && connectedClients.isNotEmpty(),
                         singleLine = true
@@ -842,11 +870,19 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
             }
 
             item {
+                val dualClientPermittedSize = (clientQuality?.mtuBytes ?: 23) - 3
+                val dualClientInputBytes = clientInput.encodeToByteArray().size
+                val dualClientWillChunk = dualClientInputBytes > dualClientPermittedSize
+                val dualClientSendLabel = buildString {
+                    append("To server")
+                    append("  (max: ${dualClientPermittedSize}B)")
+                    if (dualClientWillChunk) append("  — CHUNKS")
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
                     OutlinedTextField(
                         value = clientInput,
                         onValueChange = { clientInput = it },
-                        label = { Text("To server") },
+                        label = { Text(dualClientSendLabel, color = if (dualClientWillChunk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface) },
                         modifier = Modifier.weight(1f),
                         enabled = clientConnected,
                         singleLine = true

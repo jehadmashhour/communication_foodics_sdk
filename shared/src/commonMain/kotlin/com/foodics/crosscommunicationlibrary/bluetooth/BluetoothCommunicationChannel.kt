@@ -28,4 +28,5 @@ expect class BluetoothCommunicationChannel(logger: CommunicationLogger?) : Commu
     override suspend fun receiveMessagesFromClient(): Flow<ClientMessage>
     override fun connectionQuality(): Flow<ConnectionQuality>
     override fun serverClientsQuality(): Flow<List<ClientQuality>>
+    override fun serverPermittedMessageSize(): Flow<Int>
 }

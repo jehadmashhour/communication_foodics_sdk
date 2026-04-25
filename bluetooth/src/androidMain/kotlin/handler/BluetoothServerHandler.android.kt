@@ -1,5 +1,7 @@
 package handler
 
+import BleChunker
+import ChunkReassembler
 import BluetoothConstants.ADVERTISER_UUID
 import BluetoothConstants.CCCD_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
@@ -60,6 +62,9 @@ actual class BluetoothServerHandler(
     private val _messageFlow = MutableSharedFlow<BleMessage>(extraBufferCapacity = 64)
 
     private val _clientQuality = MutableStateFlow<Map<String, Float>>(emptyMap())
+    private val _clientMtus = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val clientReassemblers = mutableMapOf<String, ChunkReassembler>()
+    private var serverChunkMsgId: Byte = 0
 
     suspend fun start(deviceName: String, identifier: String) {
         stop()
@@ -83,6 +88,8 @@ actual class BluetoothServerHandler(
                     logger?.info(LOG_TITLE, "Client disconnected", mapOf("client_id" to id, "client_name" to name))
                     Log.i(TAG, "Client disconnected: $name ($id)")
                     _clientQuality.value = _clientQuality.value - id
+                    _clientMtus.value = _clientMtus.value - id
+                    clientReassemblers.remove(id)
                 }
                 _connectedClients.value = _connectedClients.value.filterKeys { it in activeIds }
                 toClientChars.keys.retainAll(activeIds)
@@ -117,31 +124,46 @@ actual class BluetoothServerHandler(
 
         fromClientChar.value
             .onEach { data ->
-                val text = data.decodeToString()
-                when {
-                    text.startsWith(HELLO_PREFIX) -> {
-                        val name = text.removePrefix(HELLO_PREFIX).trim()
-                        _connectedClients.value = _connectedClients.value + (clientId to BleClient(clientId, name))
-                        logger?.info(LOG_TITLE, "Client connected", mapOf("client_id" to clientId, "client_name" to name))
-                        Log.i(TAG, "Client $clientId identified as: $name")
-                    }
-                    text == CLIENT_DISCONNECT_SIGNAL -> {
-                        val name = _connectedClients.value[clientId]?.name ?: clientId
-                        _connectedClients.value = _connectedClients.value - clientId
-                        _clientQuality.value = _clientQuality.value - clientId
-                        logger?.info(LOG_TITLE, "Client disconnected gracefully", mapOf("client_id" to clientId, "client_name" to name))
-                        Log.i(TAG, "Client $clientId ($name) disconnected gracefully")
-                    }
-                    text.startsWith(QUALITY_REPORT_PREFIX) -> {
-                        val rssi = text.removePrefix(QUALITY_REPORT_PREFIX).toIntOrNull() ?: Int.MIN_VALUE
-                        _clientQuality.value = _clientQuality.value + (clientId to rssiToQuality(rssi))
-                        logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_id" to clientId, "rssi_dbm" to rssi, "signal_level" to rssiToSignalLevel(rssi).name))
-                    }
-                    else -> {
+                if (BleChunker.isChunk(data)) {
+                    val reassembler = clientReassemblers.getOrPut(clientId) { ChunkReassembler() }
+                    val complete = reassembler.process(data)
+                    if (complete != null) {
                         val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)
-                        _messageFlow.tryEmit(BleMessage(client, data))
-                        logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to client.name, "bytes" to data.size))
-                        Log.i(TAG, "Message from ${client.name}: ${String(data)}")
+                        _messageFlow.tryEmit(BleMessage(client, complete))
+                        logger?.debug(LOG_TITLE, "Chunk reassembled from client", mapOf("client_name" to client.name, "bytes" to complete.size))
+                    }
+                } else {
+                    val text = data.decodeToString()
+                    when {
+                        text.startsWith(HELLO_PREFIX) -> {
+                            val name = text.removePrefix(HELLO_PREFIX).trim()
+                            _connectedClients.value = _connectedClients.value + (clientId to BleClient(clientId, name))
+                            logger?.info(LOG_TITLE, "Client connected", mapOf("client_id" to clientId, "client_name" to name))
+                            Log.i(TAG, "Client $clientId identified as: $name")
+                        }
+                        text == CLIENT_DISCONNECT_SIGNAL -> {
+                            val name = _connectedClients.value[clientId]?.name ?: clientId
+                            _connectedClients.value = _connectedClients.value - clientId
+                            _clientQuality.value = _clientQuality.value - clientId
+                            _clientMtus.value = _clientMtus.value - clientId
+                            clientReassemblers.remove(clientId)
+                            logger?.info(LOG_TITLE, "Client disconnected gracefully", mapOf("client_id" to clientId, "client_name" to name))
+                            Log.i(TAG, "Client $clientId ($name) disconnected gracefully")
+                        }
+                        text.startsWith(QUALITY_REPORT_PREFIX) -> {
+                            val parts = text.removePrefix(QUALITY_REPORT_PREFIX).split(":")
+                            val rssi = parts[0].toIntOrNull() ?: Int.MIN_VALUE
+                            val mtu = parts.getOrNull(1)?.toIntOrNull()
+                            _clientQuality.value = _clientQuality.value + (clientId to rssiToQuality(rssi))
+                            if (mtu != null) _clientMtus.value = _clientMtus.value + (clientId to mtu)
+                            logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_id" to clientId, "rssi_dbm" to rssi, "mtu" to (mtu ?: "unknown"), "signal_level" to rssiToSignalLevel(rssi).name))
+                        }
+                        else -> {
+                            val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)
+                            _messageFlow.tryEmit(BleMessage(client, data))
+                            logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to client.name, "bytes" to data.size))
+                            Log.i(TAG, "Message from ${client.name}: ${String(data)}")
+                        }
                     }
                 }
             }
@@ -155,14 +177,31 @@ actual class BluetoothServerHandler(
         clients.values.map { c -> ClientQuality(c.id, c.name, quality[c.id] ?: 0f) }
     }
 
+    private fun serverWritePayloadSize(): Int {
+        val minMtu = _clientMtus.value.values.minOrNull() ?: 23
+        return (minMtu - 3).coerceAtLeast(20)
+    }
+
+    fun permittedSendSize(): Flow<Int> = _clientMtus.map { mtus ->
+        if (mtus.isEmpty()) 20 else (mtus.values.min() - 3).coerceAtLeast(1)
+    }
+
     suspend fun sendToClient(data: ByteArray) = sendToClients(data, emptyList())
 
     suspend fun sendToClients(data: ByteArray, targetIds: List<String>) {
         val targets = if (targetIds.isEmpty()) toClientChars.values
                       else targetIds.mapNotNull { toClientChars[it] }
-        logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("client_count" to targets.size, "bytes" to data.size))
-        Log.i(TAG, "Sending to ${targets.size} client(s): ${String(data)}")
-        targets.forEach { it.setValue(data) }
+        val maxPayload = serverWritePayloadSize()
+        if (data.size <= maxPayload) {
+            logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("client_count" to targets.size, "bytes" to data.size))
+            Log.i(TAG, "Sending to ${targets.size} client(s): ${data.size} bytes")
+            targets.forEach { it.setValue(data) }
+        } else {
+            val chunks = BleChunker.buildChunks(data, maxPayload, serverChunkMsgId++)
+            logger?.debug(LOG_TITLE, "Sending chunked data to clients", mapOf("client_count" to targets.size, "bytes" to data.size, "chunks" to chunks.size))
+            Log.i(TAG, "Sending ${chunks.size} chunks to ${targets.size} client(s)")
+            chunks.forEach { chunk -> targets.forEach { it.setValue(chunk) } }
+        }
     }
 
     fun receiveFromClient(): Flow<ByteArray> = _messageFlow.map { it.data }
@@ -189,6 +228,8 @@ actual class BluetoothServerHandler(
             toClientChars.clear()
             _connectedClients.value = emptyMap()
             _clientQuality.value = emptyMap()
+            _clientMtus.value = emptyMap()
+            clientReassemblers.clear()
             logger?.info(LOG_TITLE, "BLE server stopped")
             Log.i(TAG, "Stopped BLE server & advertiser")
         } catch (e: Exception) {

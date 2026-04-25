@@ -71,9 +71,9 @@ class IOSServer(
     private val _clientNames = MutableStateFlow<Map<String, String>>(emptyMap())
     val clientNames: StateFlow<Map<String, String>> = _clientNames.asStateFlow()
 
-    // Emits (centralId, rssiDbm) for each __QREP__ received — used by BluetoothServerHandler for quality.
-    private val _qualityReportEvents = MutableSharedFlow<Pair<String, Int>>(extraBufferCapacity = 64)
-    val qualityReportEvents: SharedFlow<Pair<String, Int>> = _qualityReportEvents.asSharedFlow()
+    // Emits (centralId, rssiDbm, mtu?) for each __QREP__ received — used by BluetoothServerHandler for quality.
+    private val _qualityReportEvents = MutableSharedFlow<Triple<String, Int, Int?>>(extraBufferCapacity = 64)
+    val qualityReportEvents: SharedFlow<Triple<String, Int, Int?>> = _qualityReportEvents.asSharedFlow()
 
     // Emits the centralId whenever a central unsubscribes (used for bridge disconnect detection)
     private val _centralDisconnectedEvent = MutableSharedFlow<String>(extraBufferCapacity = 16)
@@ -129,8 +129,10 @@ class IOSServer(
                             _centralDisconnectedEvent.tryEmit(centralId)
                         }
                         text.startsWith(BluetoothConstants.QUALITY_REPORT_PREFIX) -> {
-                            val rssi = text.removePrefix(BluetoothConstants.QUALITY_REPORT_PREFIX).toIntOrNull() ?: Int.MIN_VALUE
-                            _qualityReportEvents.tryEmit(centralId to rssi)
+                            val parts = text.removePrefix(BluetoothConstants.QUALITY_REPORT_PREFIX).split(":")
+                            val rssi = parts[0].toIntOrNull() ?: Int.MIN_VALUE
+                            val mtu = parts.getOrNull(1)?.toIntOrNull()
+                            _qualityReportEvents.tryEmit(Triple(centralId, rssi, mtu))
                         }
                         else -> {
                             _receivedWrites.tryEmit(Triple(centralId, request.characteristic().UUID.toUuid(), data))

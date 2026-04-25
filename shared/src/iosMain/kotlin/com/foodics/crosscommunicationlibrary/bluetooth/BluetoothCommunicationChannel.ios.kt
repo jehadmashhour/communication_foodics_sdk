@@ -136,5 +136,7 @@ actual class BluetoothCommunicationChannel actual constructor(
     actual override fun connectionQuality(): Flow<ConnectionQuality> =
         if (serverBridgeId != null) emptyFlow() else clientHandler.connectionQuality()
 
+    actual override fun serverPermittedMessageSize(): Flow<Int> = serverHandler.permittedSendSize()
+
     actual override fun serverClientsQuality(): Flow<List<ClientQuality>> = serverHandler.clientsQuality()
 }

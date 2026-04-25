@@ -1,5 +1,7 @@
 package handler
 
+import BleChunker
+import ChunkReassembler
 import BluetoothConstants
 import BluetoothConstants.BRIDGE_C2S_PREFIX
 import BluetoothConstants.BRIDGE_DISCONNECT_PREFIX
@@ -18,6 +20,7 @@ import android.util.Log
 import client.Client
 import client.ClientCharacteristic
 import client.WriteType
+import sdk.core.data.BleGattConnectionPriority
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.error
@@ -40,6 +43,7 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.shareIn
@@ -72,6 +76,10 @@ actual class BluetoothClientHandler(
     @Volatile private var bytesSent = 0L
     @Volatile private var bytesReceived = 0L
     private var negotiatedMtu = 23
+
+    private val inboundReassembler = ChunkReassembler()
+    private var outboundMsgId: Byte = 0
+    private val writePayloadSize get() = (negotiatedMtu - 3).coerceAtLeast(20)
 
     fun scan(): Flow<List<IoTDevice>> {
         logger?.info(LOG_TITLE, "BLE scan started")
@@ -110,6 +118,7 @@ actual class BluetoothClientHandler(
             }
 
         negotiatedMtu = client.requestMtu(512)
+        client.requestConnectionPriority(BleGattConnectionPriority.HIGH)
         logger?.info(LOG_TITLE, "Connected to BLE server", mapOf("device_name" to device.name, "mtu" to negotiatedMtu))
         Log.i(TAG, "Connected to ${device.name}, MTU=$negotiatedMtu")
 
@@ -123,7 +132,7 @@ actual class BluetoothClientHandler(
             while (isActive) {
                 try {
                     val rssi = client.readRssi()
-                    clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi".encodeToByteArray(), WriteType.DEFAULT)
+                    clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi:$negotiatedMtu".encodeToByteArray(), WriteType.DEFAULT)
                 } catch (e: Exception) {
                     logger?.warn(LOG_TITLE, "RSSI reporting stopped", mapOf("error" to (e.message ?: "unknown")))
                     break
@@ -134,10 +143,16 @@ actual class BluetoothClientHandler(
     }
 
     suspend fun sendToServer(data: ByteArray, writeType: WriteType) {
-        clientToServerChar.write(data, writeType)
+        if (data.size <= writePayloadSize) {
+            clientToServerChar.write(data, writeType)
+        } else {
+            val chunks = BleChunker.buildChunks(data, writePayloadSize, outboundMsgId++)
+            logger?.debug(LOG_TITLE, "Sending chunked data to server", mapOf("bytes" to data.size, "chunks" to chunks.size, "mtu" to negotiatedMtu))
+            chunks.forEach { chunk -> clientToServerChar.write(chunk, writeType) }
+        }
         bytesSent += data.size
         logger?.debug(LOG_TITLE, "Sent data to server", mapOf("bytes" to data.size, "write_type" to writeType.name))
-        Log.d(TAG, "Sent to server: ${String(data)}")
+        Log.d(TAG, "Sent to server: ${data.size} bytes (mtu=$negotiatedMtu)")
     }
 
     // Exposes the raw notification stream so BluetoothCommunicationChannel can tap it for bridge routing.
@@ -155,6 +170,9 @@ actual class BluetoothClientHandler(
                 !text.startsWith(BRIDGE_INIT_PREFIX) &&
                 !text.startsWith(BRIDGE_C2S_PREFIX) &&
                 !text.startsWith(BRIDGE_DISCONNECT_PREFIX)
+            }
+            .mapNotNull { data ->
+                if (BleChunker.isChunk(data)) inboundReassembler.process(data) else data
             }
             .onEach { data ->
                 bytesReceived += data.size

@@ -39,6 +39,7 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import sdk.client.main.callback.ClientBleGatt
+import sdk.core.data.BleGattConnectionPriority
 import sdk.core.data.GattConnectionState
 import sdk.core.ServerDevice
 import scanner.IoTDevice
@@ -78,5 +79,9 @@ actual class Client(
         client?.requestMtu(mtu) ?: 23
     } catch (_: Exception) {
         23
+    }
+
+    fun requestConnectionPriority(priority: BleGattConnectionPriority) {
+        client?.requestConnectionPriority(priority)
     }
 }

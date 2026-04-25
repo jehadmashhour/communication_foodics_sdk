@@ -1,5 +1,7 @@
 package handler
 
+import BleChunker
+import ChunkReassembler
 import BluetoothConstants.ADVERTISER_UUID
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
@@ -49,6 +51,9 @@ actual class BluetoothServerHandler(
     private val _messageFlow = MutableSharedFlow<BleMessage>(extraBufferCapacity = 64)
 
     private val _clientQuality = MutableStateFlow<Map<String, Float>>(emptyMap())
+    private val _clientMtus = MutableStateFlow<Map<String, Int>>(emptyMap())
+    private val clientReassemblers = mutableMapOf<String, ChunkReassembler>()
+    private var serverChunkMsgId: Byte = 0
 
     suspend fun start(deviceName: String, identifier: String) {
         stop()
@@ -60,9 +65,19 @@ actual class BluetoothServerHandler(
         iosServer.receivedWrites
             .filter { (_, charUuid, _) -> charUuid == CHAR_FROM_CLIENT_UUID }
             .onEach { (centralId, _, data) ->
-                val name = iosServer.clientNames.value[centralId] ?: centralId
-                logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to name, "bytes" to data.size))
-                _messageFlow.tryEmit(BleMessage(BleClient(centralId, name), data))
+                if (BleChunker.isChunk(data)) {
+                    val reassembler = clientReassemblers.getOrPut(centralId) { ChunkReassembler() }
+                    val complete = reassembler.process(data)
+                    if (complete != null) {
+                        val name = iosServer.clientNames.value[centralId] ?: centralId
+                        logger?.debug(LOG_TITLE, "Chunk reassembled from client", mapOf("client_name" to name, "bytes" to complete.size))
+                        _messageFlow.tryEmit(BleMessage(BleClient(centralId, name), complete))
+                    }
+                } else {
+                    val name = iosServer.clientNames.value[centralId] ?: centralId
+                    logger?.debug(LOG_TITLE, "Message received from client", mapOf("client_name" to name, "bytes" to data.size))
+                    _messageFlow.tryEmit(BleMessage(BleClient(centralId, name), data))
+                }
             }
             .launchIn(scope)
 
@@ -76,16 +91,19 @@ actual class BluetoothServerHandler(
                 (previousIds - currentIds).forEach { id ->
                     logger?.info(LOG_TITLE, "Client disconnected", mapOf("client_id" to id))
                     _clientQuality.value = _clientQuality.value - id
+                    _clientMtus.value = _clientMtus.value - id
+                    clientReassemblers.remove(id)
                 }
                 previousIds = currentIds
             }
             .launchIn(scope)
 
         iosServer.qualityReportEvents
-            .onEach { (centralId, rssi) ->
+            .onEach { (centralId, rssi, mtu) ->
                 _clientQuality.value = _clientQuality.value + (centralId to rssiToQuality(rssi))
+                if (mtu != null) _clientMtus.value = _clientMtus.value + (centralId to mtu)
                 val name = iosServer.clientNames.value[centralId] ?: centralId
-                logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_name" to name, "rssi_dbm" to rssi, "signal_level" to rssiToSignalLevel(rssi).name))
+                logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_name" to name, "rssi_dbm" to rssi, "mtu" to (mtu ?: "unknown"), "signal_level" to rssiToSignalLevel(rssi).name))
             }
             .launchIn(scope)
 
@@ -100,11 +118,27 @@ actual class BluetoothServerHandler(
         names.entries.map { (id, name) -> ClientQuality(id, name, quality[id] ?: 0f) }
     }
 
+    private fun serverWritePayloadSize(): Int {
+        val minMtu = _clientMtus.value.values.minOrNull() ?: 23
+        return (minMtu - 3).coerceAtLeast(20)
+    }
+
+    fun permittedSendSize(): Flow<Int> = _clientMtus.map { mtus ->
+        if (mtus.isEmpty()) 20 else (mtus.values.min() - 3).coerceAtLeast(1)
+    }
+
     suspend fun sendToClient(data: ByteArray) = sendToClients(data, emptyList())
 
     suspend fun sendToClients(data: ByteArray, targetIds: List<String>) {
-        logger?.debug(LOG_TITLE, "Sending data to subscribers", mapOf("bytes" to data.size))
-        iosServer.sendToSubscribers(CHAR_TO_CLIENT_UUID, data, targetIds)
+        val maxPayload = serverWritePayloadSize()
+        if (data.size <= maxPayload) {
+            logger?.debug(LOG_TITLE, "Sending data to subscribers", mapOf("bytes" to data.size))
+            iosServer.sendToSubscribers(CHAR_TO_CLIENT_UUID, data, targetIds)
+        } else {
+            val chunks = BleChunker.buildChunks(data, maxPayload, serverChunkMsgId++)
+            logger?.debug(LOG_TITLE, "Sending chunked data to subscribers", mapOf("bytes" to data.size, "chunks" to chunks.size))
+            chunks.forEach { chunk -> iosServer.sendToSubscribers(CHAR_TO_CLIENT_UUID, chunk, targetIds) }
+        }
     }
 
     fun receiveFromClient(): Flow<ByteArray> = _messageFlow.map { it.data }
@@ -147,6 +181,8 @@ actual class BluetoothServerHandler(
         server.stopServer()
         iosServer.resetState()
         _clientQuality.value = emptyMap()
+        _clientMtus.value = emptyMap()
+        clientReassemblers.clear()
         logger?.info(LOG_TITLE, "BLE server stopped")
     }
 

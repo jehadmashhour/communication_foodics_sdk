@@ -33,4 +33,7 @@ interface CommunicationChannel {
 
     fun connectionQuality(): Flow<ConnectionQuality> = emptyFlow()
     fun serverClientsQuality(): Flow<List<ClientQuality>> = emptyFlow()
+
+    /** Max bytes the server can send in one packet without chunking. Emits 20 when unknown. */
+    fun serverPermittedMessageSize(): Flow<Int> = flowOf(Int.MAX_VALUE)
 }
