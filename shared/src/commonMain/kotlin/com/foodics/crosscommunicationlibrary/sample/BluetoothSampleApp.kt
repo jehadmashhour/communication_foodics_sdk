@@ -47,7 +47,6 @@ import ClientQuality
 import com.foodics.crosscommunicationlibrary.core.CommunicationSDK
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import com.foodics.crosscommunicationlibrary.core.DiscoveredDevice
-import signalLevelToQuality
 import com.foodics.crosscommunicationlibrary.logger.LogAttributes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -355,7 +354,7 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         if (!connected) { quality = null; qualityBar = 0f; return@LaunchedEffect }
         sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { q ->
             quality = q
-            qualityBar = signalLevelToQuality(q.signalLevel)
+            qualityBar = q.quality
         }
     }
 
@@ -599,7 +598,7 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
         if (!clientConnected) { clientQuality = null; clientQualityBar = 0f; return@LaunchedEffect }
         sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { q ->
             clientQuality = q
-            clientQualityBar = signalLevelToQuality(q.signalLevel)
+            clientQualityBar = q.quality
         }
     }
 

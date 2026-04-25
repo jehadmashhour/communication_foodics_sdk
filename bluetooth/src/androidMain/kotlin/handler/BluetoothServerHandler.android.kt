@@ -21,8 +21,8 @@ import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.error
 import com.foodics.crosscommunicationlibrary.logger.info
 import com.foodics.crosscommunicationlibrary.logger.warn
+import rssiToQuality
 import rssiToSignalLevel
-import signalLevelToQuality
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -134,9 +134,8 @@ actual class BluetoothServerHandler(
                     }
                     text.startsWith(QUALITY_REPORT_PREFIX) -> {
                         val rssi = text.removePrefix(QUALITY_REPORT_PREFIX).toIntOrNull() ?: Int.MIN_VALUE
-                        val level = rssiToSignalLevel(rssi)
-                        _clientQuality.value = _clientQuality.value + (clientId to signalLevelToQuality(level))
-                        logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_id" to clientId, "rssi_dbm" to rssi, "signal_level" to level.name))
+                        _clientQuality.value = _clientQuality.value + (clientId to rssiToQuality(rssi))
+                        logger?.debug(LOG_TITLE, "Client quality updated", mapOf("client_id" to clientId, "rssi_dbm" to rssi, "signal_level" to rssiToSignalLevel(rssi).name))
                     }
                     else -> {
                         val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)

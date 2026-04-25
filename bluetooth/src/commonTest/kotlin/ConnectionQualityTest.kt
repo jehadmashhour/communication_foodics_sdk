@@ -59,6 +59,12 @@ class ConnectionQualityTest {
     }
 
     @Test
+    fun rssiToDistance_atTxPower_returnsOneMetre() {
+        // At exactly txPower (-59), log-distance model gives 10^0 = 1.0 m
+        assertEquals(1.0, rssiToDistance(-59), 0.001)
+    }
+
+    @Test
     fun rssiToDistance_negativeRssi_returnsPositiveDistance() {
         val distance = rssiToDistance(-70)
         assertTrue(distance > 0.0, "Expected positive distance for rssi=-70, got $distance")
@@ -69,6 +75,78 @@ class ConnectionQualityTest {
         val close = rssiToDistance(-50)
         val far = rssiToDistance(-90)
         assertTrue(close < far, "Stronger signal (-50) should yield smaller distance than weaker (-90)")
+    }
+
+    @Test
+    fun rssiToDistance_weakSignal_givesReasonableRange() {
+        // At -80 dBm with n=2.7 and txPower=-59: 10^(21/27) ≈ 6 metres
+        val distance = rssiToDistance(-80)
+        assertTrue(distance in 4.0..10.0, "At -80 dBm expected 4–10 m indoors, got $distance")
+    }
+
+    @Test
+    fun rssiToDistance_strongSignal_givesSubMetreRange() {
+        // At -50 dBm with n=2.7 and txPower=-59: 10^(-9/27) ≈ 0.46 metres
+        val distance = rssiToDistance(-50)
+        assertTrue(distance in 0.1..1.0, "At -50 dBm expected 0.1–1.0 m, got $distance")
+    }
+
+    // ── rssiToQuality ────────────────────────────────────────────────────────
+
+    @Test
+    fun rssiToQuality_minValue_returnsZero() {
+        assertEquals(0.0f, rssiToQuality(Int.MIN_VALUE))
+    }
+
+    @Test
+    fun rssiToQuality_atBestAnchor_returnsOne() {
+        // -45 dBm is the "best practical" anchor → 1.0
+        assertEquals(1.0f, rssiToQuality(-45))
+    }
+
+    @Test
+    fun rssiToQuality_aboveBestAnchor_clampedToOne() {
+        assertEquals(1.0f, rssiToQuality(-30))
+        assertEquals(1.0f, rssiToQuality(-10))
+    }
+
+    @Test
+    fun rssiToQuality_atWorstAnchor_returnsZero() {
+        // -95 dBm is the "barely connected" anchor → 0.0
+        assertEquals(0.0f, rssiToQuality(-95))
+    }
+
+    @Test
+    fun rssiToQuality_belowWorstAnchor_clampedToZero() {
+        assertEquals(0.0f, rssiToQuality(-100))
+        assertEquals(0.0f, rssiToQuality(-120))
+    }
+
+    @Test
+    fun rssiToQuality_midPoint_returnsHalf() {
+        // Midpoint between -45 and -95 is -70 dBm → 0.5
+        assertEquals(0.5f, rssiToQuality(-70), 0.001f)
+    }
+
+    @Test
+    fun rssiToQuality_isMonotonicallyNonDecreasing() {
+        val rssiValues = listOf(-95, -85, -75, -65, -55, -45)
+        val qualities = rssiValues.map { rssiToQuality(it) }
+        for (i in 0 until qualities.size - 1) {
+            assertTrue(
+                qualities[i] <= qualities[i + 1],
+                "Quality should increase as RSSI strengthens: $qualities"
+            )
+        }
+    }
+
+    @Test
+    fun rssiToQuality_changeIsSmooth_noLargeJumps() {
+        // Adjacent dBm values should differ by no more than 2.1% (1/50 of range)
+        for (rssi in -94 downTo -46) {
+            val diff = rssiToQuality(rssi + 1) - rssiToQuality(rssi)
+            assertTrue(diff <= 0.025f, "Quality jump between ${rssi+1} and $rssi dBm is $diff (> 2.5%)")
+        }
     }
 
     // ── ConnectionQuality data class ─────────────────────────────────────────
@@ -110,6 +188,21 @@ class ConnectionQualityTest {
         assertEquals(256, copy.mtuBytes)
         assertEquals(original.rssiDbm, copy.rssiDbm)
         assertEquals(original.signalLevel, copy.signalLevel)
+    }
+
+    @Test
+    fun connectionQuality_quality_isAutoComputedFromRssi() {
+        val q = ConnectionQuality(-65, SignalLevel.GOOD, 3.5, 512, 1024L)
+        assertEquals(rssiToQuality(-65), q.quality, 0.001f)
+    }
+
+    @Test
+    fun connectionQuality_quality_atDifferentRssiValues_matchesRssiToQuality() {
+        listOf(-45, -60, -70, -80, -95).forEach { rssi ->
+            val q = ConnectionQuality(rssi, rssiToSignalLevel(rssi), rssiToDistance(rssi), 512, 0L)
+            assertEquals(rssiToQuality(rssi), q.quality, 0.001f,
+                "quality field should match rssiToQuality($rssi)")
+        }
     }
 
     // ── SignalLevel enum ─────────────────────────────────────────────────────
