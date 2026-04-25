@@ -4,6 +4,7 @@ import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.CLIENT_DISCONNECT_SIGNAL
 import BluetoothConstants.HELLO_PREFIX
+import BluetoothConstants.QUALITY_REPORT_PREFIX
 import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import ConnectionQuality
@@ -26,6 +27,8 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.flow
@@ -90,6 +93,19 @@ actual class BluetoothClientHandler(
 
         iosClient.startRssiPolling(scope)
         logger?.info(LOG_TITLE, "Connected to BLE server", mapOf("device_name" to device.name))
+
+        scope.launch {
+            delay(3000)
+            while (isActive) {
+                try {
+                    val rssi = iosClient.rssiFlow.value
+                    if (rssi != Int.MIN_VALUE) {
+                        clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi".encodeToByteArray(), WriteType.DEFAULT)
+                    }
+                } catch (_: Exception) { break }
+                delay(3000)
+            }
+        }
     }
 
     suspend fun sendToServer(data: ByteArray, writeType: WriteType) {
@@ -101,9 +117,13 @@ actual class BluetoothClientHandler(
     suspend fun receiveFromServer(): Flow<ByteArray> = merge(
         clientFromServerChar.getNotifications()
             .onEach { data ->
-                if (data.decodeToString().startsWith(SERVER_STOP_SIGNAL)) throw Exception("Server stopped")
+                val text = data.decodeToString()
+                if (text.startsWith(SERVER_STOP_SIGNAL)) throw Exception("Server stopped")
             }
-            .filter { data -> !data.decodeToString().startsWith(HELLO_PREFIX) }
+            .filter { data ->
+                val text = data.decodeToString()
+                !text.startsWith(HELLO_PREFIX)
+            }
             .onEach { data ->
                 bytesReceived += data.size
                 logger?.debug(LOG_TITLE, "Received data from server", mapOf("bytes" to data.size))

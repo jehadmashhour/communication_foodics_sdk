@@ -1,5 +1,6 @@
 package com.foodics.crosscommunicationlibrary.core
 
+import ClientQuality
 import ConnectionQuality
 import ConnectionType
 import client.WriteType
@@ -31,4 +32,5 @@ interface CommunicationChannel {
         receiveDataFromClient().map { ClientMessage(ConnectedClient("", "Device"), it) }
 
     fun connectionQuality(): Flow<ConnectionQuality> = emptyFlow()
+    fun serverClientsQuality(): Flow<List<ClientQuality>> = emptyFlow()
 }

@@ -1,5 +1,6 @@
 package com.foodics.crosscommunicationlibrary.core
 
+import ClientQuality
 import ConnectionQuality
 import ConnectionType
 import client.WriteType
@@ -155,6 +156,9 @@ class CommunicationSDK(
 
     fun connectionQuality(connectionType: ConnectionType): Flow<ConnectionQuality> =
         channels.first { it.connectionType == connectionType }.connectionQuality()
+
+    fun serverClientsQuality(connectionType: ConnectionType): Flow<List<ClientQuality>> =
+        channels.first { it.connectionType == connectionType }.serverClientsQuality()
 
     companion object {
         fun builder(): CommunicationSdkBuilder = CommunicationSdkBuilder()

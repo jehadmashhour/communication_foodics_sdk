@@ -5,6 +5,7 @@ import BluetoothConstants.BRIDGE_C2S_PREFIX
 import BluetoothConstants.BRIDGE_DISCONNECT_PREFIX
 import BluetoothConstants.BRIDGE_INIT_PREFIX
 import BluetoothConstants.CLIENT_DISCONNECT_SIGNAL
+import BluetoothConstants.QUALITY_REPORT_PREFIX
 import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.SERVER_STOP_SIGNAL
@@ -30,6 +31,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -114,6 +117,17 @@ actual class BluetoothClientHandler(
         // can subscribe without creating two independent GATT notification subscriptions.
         _rawFromServerFlow = clientFromServerChar.getNotifications()
             .shareIn(scope, SharingStarted.Eagerly, replay = 1)
+
+        scope.launch {
+            delay(3000)
+            while (isActive) {
+                try {
+                    val rssi = client.readRssi()
+                    clientToServerChar.write("$QUALITY_REPORT_PREFIX$rssi".encodeToByteArray(), WriteType.DEFAULT)
+                } catch (_: Exception) { break }
+                delay(3000)
+            }
+        }
     }
 
     suspend fun sendToServer(data: ByteArray, writeType: WriteType) {
@@ -129,7 +143,8 @@ actual class BluetoothClientHandler(
     suspend fun receiveFromServer(): Flow<ByteArray> = merge(
         _rawFromServerFlow
             .onEach { data ->
-                if (data.decodeToString().startsWith(SERVER_STOP_SIGNAL)) throw Exception("Server stopped")
+                val text = data.decodeToString()
+                if (text.startsWith(SERVER_STOP_SIGNAL)) throw Exception("Server stopped")
             }
             .filter { data ->
                 val text = data.decodeToString()

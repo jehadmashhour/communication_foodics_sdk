@@ -7,11 +7,14 @@ import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import advertisement.AdvertisementSettings
 import advertisement.Advertiser
+import ClientQuality
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.info
 import model.BleClient
 import model.BleMessage
+import rssiToSignalLevel
+import signalLevelToQuality
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -20,7 +23,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -41,6 +46,8 @@ actual class BluetoothServerHandler(
     private var scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _messageFlow = MutableSharedFlow<BleMessage>(extraBufferCapacity = 64)
+
+    private val _clientQuality = MutableStateFlow<Map<String, Float>>(emptyMap())
 
     suspend fun start(deviceName: String, identifier: String) {
         stop()
@@ -67,13 +74,27 @@ actual class BluetoothServerHandler(
                 }
                 (previousIds - currentIds).forEach { id ->
                     logger?.info(LOG_TITLE, "Client disconnected", mapOf("client_id" to id))
+                    _clientQuality.value = _clientQuality.value - id
                 }
                 previousIds = currentIds
             }
             .launchIn(scope)
 
+        iosServer.qualityReportEvents
+            .onEach { (centralId, rssi) ->
+                _clientQuality.value = _clientQuality.value + (centralId to signalLevelToQuality(rssiToSignalLevel(rssi)))
+            }
+            .launchIn(scope)
+
         advertiser.advertise(AdvertisementSettings(name = deviceName, identifier = identifier, uuid = ADVERTISER_UUID))
         logger?.info(LOG_TITLE, "BLE advertising started", mapOf("device_name" to deviceName))
+    }
+
+    fun clientsQuality(): Flow<List<ClientQuality>> = combine(
+        iosServer.clientNames,
+        _clientQuality
+    ) { names, quality ->
+        names.entries.map { (id, name) -> ClientQuality(id, name, quality[id] ?: 0f) }
     }
 
     suspend fun sendToClient(data: ByteArray) = sendToClients(data, emptyList())
@@ -119,6 +140,7 @@ actual class BluetoothServerHandler(
         advertiser.stop()
         server.stopServer()
         iosServer.resetState()
+        _clientQuality.value = emptyMap()
         logger?.info(LOG_TITLE, "BLE server stopped")
     }
 

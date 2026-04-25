@@ -71,6 +71,10 @@ class IOSServer(
     private val _clientNames = MutableStateFlow<Map<String, String>>(emptyMap())
     val clientNames: StateFlow<Map<String, String>> = _clientNames.asStateFlow()
 
+    // Emits (centralId, rssiDbm) for each __QREP__ received — used by BluetoothServerHandler for quality.
+    private val _qualityReportEvents = MutableSharedFlow<Pair<String, Int>>(extraBufferCapacity = 64)
+    val qualityReportEvents: SharedFlow<Pair<String, Int>> = _qualityReportEvents.asSharedFlow()
+
     // Emits the centralId whenever a central unsubscribes (used for bridge disconnect detection)
     private val _centralDisconnectedEvent = MutableSharedFlow<String>(extraBufferCapacity = 16)
     val centralDisconnectedEvent: SharedFlow<String> = _centralDisconnectedEvent.asSharedFlow()
@@ -123,6 +127,10 @@ class IOSServer(
                         text == BluetoothConstants.CLIENT_DISCONNECT_SIGNAL -> {
                             _clientNames.value = _clientNames.value - centralId
                             _centralDisconnectedEvent.tryEmit(centralId)
+                        }
+                        text.startsWith(BluetoothConstants.QUALITY_REPORT_PREFIX) -> {
+                            val rssi = text.removePrefix(BluetoothConstants.QUALITY_REPORT_PREFIX).toIntOrNull() ?: Int.MIN_VALUE
+                            _qualityReportEvents.tryEmit(centralId to rssi)
                         }
                         else -> {
                             _receivedWrites.tryEmit(Triple(centralId, request.characteristic().UUID.toUuid(), data))
@@ -222,6 +230,7 @@ class IOSServer(
         _clientNames.value = emptyMap()
         _connections.value = emptyMap()
         notificationsRecords.clear()
+        // _qualityReportEvents and _centralDisconnectedEvent are shared flows — they don't need clearing.
     }
 
     // Looks up the centralId for a device, trying two strategies:

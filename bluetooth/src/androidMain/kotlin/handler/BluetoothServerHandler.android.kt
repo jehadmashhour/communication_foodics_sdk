@@ -6,6 +6,7 @@ import BluetoothConstants.CHAR_FROM_CLIENT_UUID
 import BluetoothConstants.CHAR_TO_CLIENT_UUID
 import BluetoothConstants.CLIENT_DISCONNECT_SIGNAL
 import BluetoothConstants.HELLO_PREFIX
+import BluetoothConstants.QUALITY_REPORT_PREFIX
 import BluetoothConstants.SERVER_STOP_SIGNAL
 import BluetoothConstants.SERVICE_UUID
 import BluetoothConstants.TAG
@@ -14,11 +15,14 @@ import advertisement.Advertiser
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import ClientQuality
 import com.foodics.crosscommunicationlibrary.logger.CommunicationLogger
 import com.foodics.crosscommunicationlibrary.logger.debug
 import com.foodics.crosscommunicationlibrary.logger.error
 import com.foodics.crosscommunicationlibrary.logger.info
 import com.foodics.crosscommunicationlibrary.logger.warn
+import rssiToSignalLevel
+import signalLevelToQuality
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -28,6 +32,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.map
@@ -53,6 +58,8 @@ actual class BluetoothServerHandler(
     private val initializedProfiles = mutableSetOf<ServerProfile>()
     private val _connectedClients = MutableStateFlow<Map<String, BleClient>>(emptyMap())
     private val _messageFlow = MutableSharedFlow<BleMessage>(extraBufferCapacity = 64)
+
+    private val _clientQuality = MutableStateFlow<Map<String, Float>>(emptyMap())
 
     suspend fun start(deviceName: String, identifier: String) {
         stop()
@@ -120,8 +127,13 @@ actual class BluetoothServerHandler(
                     text == CLIENT_DISCONNECT_SIGNAL -> {
                         val name = _connectedClients.value[clientId]?.name ?: clientId
                         _connectedClients.value = _connectedClients.value - clientId
+                        _clientQuality.value = _clientQuality.value - clientId
                         logger?.info(LOG_TITLE, "Client disconnected gracefully", mapOf("client_id" to clientId, "client_name" to name))
                         Log.i(TAG, "Client $clientId ($name) disconnected gracefully")
+                    }
+                    text.startsWith(QUALITY_REPORT_PREFIX) -> {
+                        val rssi = text.removePrefix(QUALITY_REPORT_PREFIX).toIntOrNull() ?: Int.MIN_VALUE
+                        _clientQuality.value = _clientQuality.value + (clientId to signalLevelToQuality(rssiToSignalLevel(rssi)))
                     }
                     else -> {
                         val client = _connectedClients.value[clientId] ?: BleClient(clientId, clientId)
@@ -132,6 +144,13 @@ actual class BluetoothServerHandler(
                 }
             }
             .launchIn(scope)
+    }
+
+    fun clientsQuality(): Flow<List<ClientQuality>> = combine(
+        _connectedClients,
+        _clientQuality
+    ) { clients, quality ->
+        clients.values.map { c -> ClientQuality(c.id, c.name, quality[c.id] ?: 0f) }
     }
 
     suspend fun sendToClient(data: ByteArray) = sendToClients(data, emptyList())
@@ -167,6 +186,7 @@ actual class BluetoothServerHandler(
             initializedProfiles.clear()
             toClientChars.clear()
             _connectedClients.value = emptyMap()
+            _clientQuality.value = emptyMap()
             logger?.info(LOG_TITLE, "BLE server stopped")
             Log.i(TAG, "Stopped BLE server & advertiser")
         } catch (e: Exception) {

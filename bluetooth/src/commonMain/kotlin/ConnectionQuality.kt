@@ -18,6 +18,14 @@ fun rssiToSignalLevel(rssi: Int): SignalLevel = when {
     else                  -> SignalLevel.POOR
 }
 
+fun signalLevelToQuality(level: SignalLevel): Float = when (level) {
+    SignalLevel.EXCELLENT -> 1.0f
+    SignalLevel.GOOD      -> 0.75f
+    SignalLevel.FAIR      -> 0.5f
+    SignalLevel.POOR      -> 0.25f
+    SignalLevel.UNKNOWN   -> 0.0f
+}
+
 fun rssiToDistance(rssi: Int, txPower: Int = -59): Double {
     if (rssi >= 0 || rssi == Int.MIN_VALUE) return -1.0
     val ratio = rssi.toDouble() / txPower.toDouble()

@@ -4,7 +4,10 @@ import BluetoothConstants.HELLO_PREFIX
 import ConnectionQuality
 import ConnectionType
 import SignalLevel
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,11 +21,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -34,12 +39,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import ClientQuality
 import com.foodics.crosscommunicationlibrary.core.CommunicationSDK
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
 import com.foodics.crosscommunicationlibrary.core.DiscoveredDevice
+import signalLevelToQuality
 import com.foodics.crosscommunicationlibrary.logger.LogAttributes
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -107,6 +115,7 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
     var running by remember { mutableStateOf(false) }
     var connectedClients by remember { mutableStateOf(listOf<ConnectedClient>()) }
     var selectedClientIds by remember { mutableStateOf(emptySet<String>()) }
+    var serverClientsQuality by remember { mutableStateOf(listOf<ClientQuality>()) }
     val prefix = remember { devicePlatformPrefix() }
     val maxNameLength = 27 - prefix.length - 1
 
@@ -152,6 +161,11 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         }
     }
 
+    LaunchedEffect(running) {
+        if (!running) { serverClientsQuality = emptyList(); return@LaunchedEffect }
+        sdk.serverClientsQuality(ConnectionType.BLUETOOTH).collect { serverClientsQuality = it }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -192,9 +206,20 @@ private fun ServerScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
 
         if (running && connectedClients.isNotEmpty()) {
             Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Connected clients (${connectedClients.size})", style = MaterialTheme.typography.labelLarge)
-                    connectedClients.forEach { Text("• ${it.name}", style = MaterialTheme.typography.bodySmall) }
+                    connectedClients.forEach { client ->
+                        val q = serverClientsQuality.firstOrNull { it.clientId == client.id }
+                        if (q != null) {
+                            ConnectionQualityBar(
+                                quality = q.quality,
+                                label = client.name,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            Text("• ${client.name}", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 }
             }
         }
@@ -324,9 +349,14 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
         }
     }
 
+    var qualityBar by remember { mutableStateOf(0f) }
+
     LaunchedEffect(connected) {
-        if (!connected) { quality = null; return@LaunchedEffect }
-        sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { quality = it }
+        if (!connected) { quality = null; qualityBar = 0f; return@LaunchedEffect }
+        sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { q ->
+            quality = q
+            qualityBar = signalLevelToQuality(q.signalLevel)
+        }
     }
 
     Column(
@@ -408,6 +438,15 @@ private fun ClientScreen(sdk: CommunicationSDK, onBack: () -> Unit) {
             }
         } else {
             quality?.let { ConnectionQualityCard(it) }
+            if (qualityBar > 0f) {
+                Spacer(Modifier.height(4.dp))
+                ConnectionQualityBar(
+                    quality = qualityBar,
+                    label = "Signal to $serverName",
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+            Spacer(Modifier.height(8.dp))
 
             LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth()) {
                 items(messages) { msg ->
@@ -479,6 +518,8 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     var clientMessages by remember { mutableStateOf(listOf<String>()) }
     var clientInput by remember { mutableStateOf("") }
     var clientQuality by remember { mutableStateOf<ConnectionQuality?>(null) }
+    var clientQualityBar by remember { mutableStateOf(0f) }
+    var serverClientsQuality by remember { mutableStateOf(listOf<ClientQuality>()) }
 
     val startServer = rememberBluetoothEnableLauncher {
         scope.launch {
@@ -555,8 +596,16 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
     }
 
     LaunchedEffect(clientConnected) {
-        if (!clientConnected) { clientQuality = null; return@LaunchedEffect }
-        sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { clientQuality = it }
+        if (!clientConnected) { clientQuality = null; clientQualityBar = 0f; return@LaunchedEffect }
+        sdk.connectionQuality(ConnectionType.BLUETOOTH).collect { q ->
+            clientQuality = q
+            clientQualityBar = signalLevelToQuality(q.signalLevel)
+        }
+    }
+
+    LaunchedEffect(serverRunning) {
+        if (!serverRunning) { serverClientsQuality = emptyList(); return@LaunchedEffect }
+        sdk.serverClientsQuality(ConnectionType.BLUETOOTH).collect { serverClientsQuality = it }
     }
 
     Column(
@@ -627,9 +676,20 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
             if (serverRunning && connectedClients.isNotEmpty()) {
                 item {
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Column(modifier = Modifier.padding(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Text("Connected clients (${connectedClients.size})", style = MaterialTheme.typography.labelMedium)
-                            connectedClients.forEach { Text("• ${it.name}", style = MaterialTheme.typography.bodySmall) }
+                            connectedClients.forEach { client ->
+                                val q = serverClientsQuality.firstOrNull { it.clientId == client.id }
+                                if (q != null) {
+                                    ConnectionQualityBar(
+                                        quality = q.quality,
+                                        label = client.name,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                } else {
+                                    Text("• ${client.name}", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
                         }
                     }
                     Spacer(Modifier.height(4.dp))
@@ -767,6 +827,15 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
             clientQuality?.let { q ->
                 item { ConnectionQualityCard(q, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)) }
             }
+            if (clientConnected && clientQualityBar > 0f) {
+                item {
+                    ConnectionQualityBar(
+                        quality = clientQualityBar,
+                        label = "Signal to $connectedServerName",
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp)
+                    )
+                }
+            }
 
             items(clientMessages) { msg ->
                 Text("[Client] $msg", modifier = Modifier.padding(vertical = 2.dp), style = MaterialTheme.typography.bodySmall)
@@ -810,6 +879,44 @@ private fun DualScreen(sdk: CommunicationSDK, onBack: () -> Unit = {}) {
                     ) { Text("Disconnect from Server") }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ConnectionQualityBar(
+    quality: Float,
+    label: String,
+    modifier: Modifier = Modifier.fillMaxWidth()
+) {
+    val animatedQuality by animateFloatAsState(
+        targetValue = quality.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 600),
+        label = "quality"
+    )
+    val color = when {
+        animatedQuality >= 0.75f -> androidx.compose.ui.graphics.Color(0xFF4CAF50)
+        animatedQuality >= 0.5f  -> androidx.compose.ui.graphics.Color(0xFF8BC34A)
+        animatedQuality >= 0.25f -> androidx.compose.ui.graphics.Color(0xFFFF9800)
+        else                     -> androidx.compose.ui.graphics.Color(0xFFF44336)
+    }
+    val pct = (animatedQuality * 100).toInt()
+    Column(modifier = modifier) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("$pct%", style = MaterialTheme.typography.labelSmall, color = color)
+        }
+        Spacer(Modifier.height(2.dp))
+        Box(modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))) {
+            LinearProgressIndicator(
+                progress = { animatedQuality },
+                modifier = Modifier.fillMaxWidth().height(6.dp),
+                color = color,
+                trackColor = MaterialTheme.colorScheme.surfaceVariant
+            )
         }
     }
 }

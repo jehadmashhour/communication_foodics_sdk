@@ -3,6 +3,7 @@ package com.foodics.crosscommunicationlibrary.bluetooth
 import android.content.Context
 import client.WriteType
 import com.foodics.crosscommunicationlibrary.AppContext
+import ClientQuality
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
@@ -166,4 +167,12 @@ actual class BluetoothCommunicationChannel(
     )
 
     actual override fun connectionQuality(): Flow<ConnectionQuality> = clientHandler.connectionQuality()
+
+    actual override fun serverClientsQuality(): Flow<List<ClientQuality>> = combine(
+        serverHandler.clientsQuality(),
+        _bridgeClient
+    ) { serverList, bridge ->
+        if (bridge != null) serverList + ClientQuality(bridge.id, bridge.name, 0f)
+        else serverList
+    }
 }

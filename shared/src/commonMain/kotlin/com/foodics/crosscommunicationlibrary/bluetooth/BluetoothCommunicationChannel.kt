@@ -1,5 +1,6 @@
 package com.foodics.crosscommunicationlibrary.bluetooth
 
+import ClientQuality
 import client.WriteType
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
@@ -26,4 +27,5 @@ expect class BluetoothCommunicationChannel(logger: CommunicationLogger?) : Commu
     override fun connectedClients(): Flow<List<ConnectedClient>>
     override suspend fun receiveMessagesFromClient(): Flow<ClientMessage>
     override fun connectionQuality(): Flow<ConnectionQuality>
+    override fun serverClientsQuality(): Flow<List<ClientQuality>>
 }

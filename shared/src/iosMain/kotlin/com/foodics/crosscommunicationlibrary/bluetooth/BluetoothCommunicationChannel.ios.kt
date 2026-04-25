@@ -1,6 +1,7 @@
 package com.foodics.crosscommunicationlibrary.bluetooth
 
 import client.WriteType
+import ClientQuality
 import com.foodics.crosscommunicationlibrary.core.ClientMessage
 import com.foodics.crosscommunicationlibrary.core.CommunicationChannel
 import com.foodics.crosscommunicationlibrary.core.ConnectedClient
@@ -128,4 +129,6 @@ actual class BluetoothCommunicationChannel actual constructor(
 
     actual override fun connectionQuality(): Flow<ConnectionQuality> =
         if (serverBridgeId != null) emptyFlow() else clientHandler.connectionQuality()
+
+    actual override fun serverClientsQuality(): Flow<List<ClientQuality>> = serverHandler.clientsQuality()
 }

@@ -15,6 +15,8 @@ object BluetoothConstants {
 
     // Bridge-mode multiplexing: sent over the iOS-server ↔ Android-client pipe to carry
     // the second logical channel (iOS-as-client ↔ Android-as-server) on the same connection.
+    const val QUALITY_REPORT_PREFIX = "__QREP__:"  // client→server: RSSI report, e.g. "__QREP__:-65"
+
     const val BRIDGE_INIT_PREFIX       = "__BINIT__:"   // iOS→Android: bridge activated, carries iOS display name
     const val BRIDGE_C2S_PREFIX        = "__BC2S__:"    // iOS→Android: iOS-client sending to Android-server
     const val BRIDGE_S2C_PREFIX        = "__BS2C__:"    // Android→iOS: Android-server sending to iOS-client
