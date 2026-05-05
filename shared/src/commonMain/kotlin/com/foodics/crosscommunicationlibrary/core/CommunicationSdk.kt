@@ -14,6 +14,7 @@ import kotlinx.coroutines.IO
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flatMapMerge
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -102,17 +103,31 @@ class CommunicationSDK(
                 logger?.error(LOG_TITLE, "Device not found in cache", extra = mapOf("connection_type" to connectionType.name, "device_name" to device.name))
                 error("Device '${device.name}' not found in scan cache for $connectionType. Scan before connecting.")
             }
-        channels.first { it.connectionType == connectionType }.connectToServer(iotDevice)
+        try {
+            channels.first { it.connectionType == connectionType }.connectToServer(iotDevice)
+        } catch (e: Exception) {
+            logger?.error(LOG_TITLE, "Failed to connect to server", e, mapOf("connection_type" to connectionType.name, "device_name" to device.name))
+            throw e
+        }
         logger?.info(LOG_TITLE, "Connected to server", mapOf("connection_type" to connectionType.name, "device_name" to device.name))
     }
 
     suspend fun sendDataToServer(connectionType: ConnectionType, data: ByteArray, writeType: WriteType = WriteType.DEFAULT) {
         logger?.debug(LOG_TITLE, "Sending data to server", mapOf("connection_type" to connectionType.name, "bytes" to data.size))
-        channels.first { it.connectionType == connectionType }.sendDataToServer(data, writeType)
+        try {
+            channels.first { it.connectionType == connectionType }.sendDataToServer(data, writeType)
+        } catch (e: Exception) {
+            logger?.error(LOG_TITLE, "Failed to send data to server", e, mapOf("connection_type" to connectionType.name, "bytes" to data.size))
+            throw e
+        }
     }
 
     suspend fun receiveFromServer(connectionType: ConnectionType): Flow<ByteArray> =
         channels.first { it.connectionType == connectionType }.receiveDataFromServer()
+            .catch { e ->
+                logger?.error(LOG_TITLE, "Receive stream from server terminated with error", e as? Exception, mapOf("connection_type" to connectionType.name))
+                throw e
+            }
 
     suspend fun sendDataToClient(connectionType: ConnectionType, data: ByteArray) {
         logger?.debug(LOG_TITLE, "Sending data to client", mapOf("connection_type" to connectionType.name, "bytes" to data.size))
@@ -121,7 +136,12 @@ class CommunicationSDK(
 
     suspend fun sendDataToClients(connectionType: ConnectionType, data: ByteArray, clientIds: List<String>) {
         logger?.debug(LOG_TITLE, "Sending data to clients", mapOf("connection_type" to connectionType.name, "bytes" to data.size, "target_count" to clientIds.size))
-        channels.first { it.connectionType == connectionType }.sendDataToClients(data, clientIds)
+        try {
+            channels.first { it.connectionType == connectionType }.sendDataToClients(data, clientIds)
+        } catch (e: Exception) {
+            logger?.error(LOG_TITLE, "Failed to send data to clients", e, mapOf("connection_type" to connectionType.name, "bytes" to data.size))
+            throw e
+        }
     }
 
     suspend fun receiveDataFromClient(connectionType: ConnectionType): Flow<ByteArray> =
@@ -154,6 +174,10 @@ class CommunicationSDK(
 
     suspend fun receiveMessagesFromClient(connectionType: ConnectionType): Flow<ClientMessage> =
         channels.first { it.connectionType == connectionType }.receiveMessagesFromClient()
+            .catch { e ->
+                logger?.error(LOG_TITLE, "Receive stream from client terminated with error", e as? Exception, mapOf("connection_type" to connectionType.name))
+                throw e
+            }
 
     fun scanDevices(connectionType: ConnectionType): Flow<List<IoTDevice>> =
         channels.first { it.connectionType == connectionType }.scan()

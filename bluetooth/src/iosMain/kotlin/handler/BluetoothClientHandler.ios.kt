@@ -200,7 +200,9 @@ actual class BluetoothClientHandler(
             if (::clientToServerChar.isInitialized) {
                 clientToServerChar.write(CLIENT_DISCONNECT_SIGNAL.encodeToByteArray(), WriteType.DEFAULT)
             }
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            logger?.warn(LOG_TITLE, "Failed to send disconnect signal to server", mapOf("error" to (e.message ?: "unknown")))
+        }
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         bytesSent = 0L

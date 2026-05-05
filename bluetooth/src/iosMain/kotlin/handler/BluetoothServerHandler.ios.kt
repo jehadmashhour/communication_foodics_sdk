@@ -182,7 +182,9 @@ actual class BluetoothServerHandler(
         try {
             sendToClients(SERVER_STOP_SIGNAL.encodeToByteArray(), emptyList())
             delay(100)
-        } catch (_: Exception) { }
+        } catch (e: Exception) {
+            logger?.warn(LOG_TITLE, "Failed to send stop signal to clients", mapOf("error" to (e.message ?: "unknown")))
+        }
         scope.cancel()
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         advertiser.stop()

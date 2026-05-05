@@ -115,7 +115,9 @@ actual class BluetoothCommunicationChannel actual constructor(
             serverBridgeId = null
             try {
                 serverHandler.sendToClients(BRIDGE_DISCONNECT_PREFIX.encodeToByteArray(), listOf(bridgeId))
-            } catch (_: Exception) { }
+            } catch (e: Exception) {
+                logger?.warn(LOG_TITLE, "Failed to send bridge disconnect signal", mapOf("bridge_id" to bridgeId, "error" to (e.message ?: "unknown")))
+            }
         } else {
             clientHandler.disconnect()
         }
