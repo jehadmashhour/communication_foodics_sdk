@@ -36,6 +36,7 @@ import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothGattServerCallback
 import android.bluetooth.BluetoothGattService
+import android.util.Log
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -61,6 +62,8 @@ import sdk.server.api.ServerGattEvent.ServerMtuChanged
 import sdk.server.api.ServerGattEvent.ServerPhyRead
 import sdk.server.api.ServerGattEvent.ServerPhyUpdate
 import sdk.server.api.ServerGattEvent.ServiceAdded
+
+private const val DIAG_TAG = "BLE_CONN_DIAG"
 
 /**
  * A class which maps [BluetoothGattServerCallback] methods into [ServerGattEvent] events.
@@ -98,6 +101,7 @@ class ServerBleGattCallback(
         offset: Int,
         value: ByteArray?
     ) {
+        Log.d(DIAG_TAG, "onCharacteristicWriteRequest: device=${device?.address} char=${characteristic.uuid} bytes=${value?.size ?: 0} responseNeeded=$responseNeeded")
         val native = NativeBluetoothGattCharacteristic(characteristic)
         _event.tryEmit(
             CharacteristicWriteRequest(
@@ -115,6 +119,10 @@ class ServerBleGattCallback(
     override fun onConnectionStateChange(device: BluetoothDevice?, status: Int, newState: Int) {
         val operationStatus = BleGattConnectionStatus.create(status)
         val state = GattConnectionState.create(newState)
+        Log.d(DIAG_TAG, "onConnectionStateChange: device=${device?.address} rawStatus=$status ($operationStatus) rawNewState=$newState ($state)")
+        if (status != 0) {
+            Log.e(DIAG_TAG, "onConnectionStateChange NON-SUCCESS: device=${device?.address} rawStatus=$status — common codes: 8=timeout 19=peer_terminate 22=local_terminate 34=lmp_timeout 62=fail_establish 133=gatt_error 257=auth_fail")
+        }
         _event.tryEmit(ClientConnectionStateChanged(RealClientDevice(device!!), operationStatus, state))
     }
 
@@ -124,6 +132,7 @@ class ServerBleGattCallback(
         offset: Int,
         descriptor: BluetoothGattDescriptor
     ) {
+        Log.d(DIAG_TAG, "onDescriptorReadRequest: device=${device?.address} descriptor=${descriptor.uuid}")
         val native = NativeBluetoothGattDescriptor(descriptor)
         _event.tryEmit(DescriptorReadRequest(RealClientDevice(device!!), requestId, offset, native))
     }
@@ -137,6 +146,7 @@ class ServerBleGattCallback(
         offset: Int,
         value: ByteArray?
     ) {
+        Log.d(DIAG_TAG, "onDescriptorWriteRequest: device=${device?.address} descriptor=${descriptor.uuid} bytes=${value?.size ?: 0}")
         val native = NativeBluetoothGattDescriptor(descriptor)
         _event.tryEmit(
             DescriptorWriteRequest(
@@ -152,10 +162,12 @@ class ServerBleGattCallback(
     }
 
     override fun onExecuteWrite(device: BluetoothDevice?, requestId: Int, execute: Boolean) {
+        Log.d(DIAG_TAG, "onExecuteWrite: device=${device?.address} execute=$execute")
         _event.tryEmit(ExecuteWrite(RealClientDevice(device!!), requestId, execute))
     }
 
     override fun onMtuChanged(device: BluetoothDevice?, mtu: Int) {
+        Log.d(DIAG_TAG, "onMtuChanged: device=${device?.address} mtu=$mtu")
         _event.tryEmit(ServerMtuChanged(RealClientDevice(device!!), mtu))
     }
 

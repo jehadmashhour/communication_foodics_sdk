@@ -15,6 +15,7 @@ import BluetoothConstants.TAG
 import advertisement.AdvertisementSettings
 import advertisement.Advertiser
 import android.annotation.SuppressLint
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.util.Log
 import ClientQuality
@@ -71,6 +72,7 @@ actual class BluetoothServerHandler(
     suspend fun start(deviceName: String, identifier: String) {
         stop()
         delay(300)
+        clearStaleBonds()
         Log.i(TAG, "Starting BLE server with name=$deviceName identifier=$identifier")
         logger?.info(LOG_TITLE, "Starting BLE server", mapOf("device_name" to deviceName, "identifier" to identifier))
 
@@ -247,6 +249,24 @@ actual class BluetoothServerHandler(
         } catch (e: Exception) {
             logger?.error(LOG_TITLE, "Error stopping BLE server", e)
             Log.e(TAG, "Error stopping BLE server", e)
+        }
+    }
+
+    private fun clearStaleBonds() {
+        val adapter = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter ?: return
+        val bonded = adapter.bondedDevices ?: return
+        if (bonded.isEmpty()) return
+        Log.i(TAG, "BLE server clearing ${bonded.size} stale bond(s) to prevent iOS CBErrorPeerRemovedPairingInformation (code=14)")
+        logger?.info(LOG_TITLE, "Clearing stale BLE bonds on server start", mapOf("bond_count" to bonded.size))
+        bonded.forEach { device ->
+            try {
+                device.javaClass.getMethod("removeBond").invoke(device)
+                Log.i(TAG, "Removed bond: ${device.name} (${device.address})")
+                logger?.info(LOG_TITLE, "Removed stale bond", mapOf("device_name" to (device.name ?: "unknown"), "device_address" to device.address))
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to remove bond for ${device.address}: ${e.message}")
+                logger?.warn(LOG_TITLE, "Failed to remove bond", mapOf("device_address" to device.address, "error" to (e.message ?: "unknown")))
+            }
         }
     }
 

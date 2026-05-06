@@ -35,6 +35,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothGattServerCallback
 import android.content.Context
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -93,6 +94,8 @@ class ServerBleGatt internal constructor(
     private val logger = LoggerFactory.getLogger(ServerBleGatt::class.java)
 
     companion object {
+
+        private const val DIAG_TAG = "BLE_CONN_DIAG"
 
         /**
          * Declares and starts server based on [config]. It can be either real BLE server or mocked
@@ -194,11 +197,24 @@ class ServerBleGatt internal constructor(
         newState: GattConnectionState,
     ) {
         logger.trace("Connection state changed, client: {}, new state: {}, status: {}", device.address, newState, status)
+        Log.d(DIAG_TAG, "ServerBleGatt.onConnectionStateChanged: device=${device.address} newState=$newState status=$status")
         when (newState) {
-            GattConnectionState.STATE_CONNECTED -> connectDevice(device)
-            GattConnectionState.STATE_DISCONNECTED,
-            GattConnectionState.STATE_CONNECTING,
-            GattConnectionState.STATE_DISCONNECTING -> removeDevice(device)
+            GattConnectionState.STATE_CONNECTED -> {
+                Log.d(DIAG_TAG, "ServerBleGatt: device CONNECTED → calling connectDevice for ${device.address}")
+                connectDevice(device)
+            }
+            GattConnectionState.STATE_DISCONNECTED -> {
+                Log.d(DIAG_TAG, "ServerBleGatt: device DISCONNECTED → removing ${device.address} status=$status")
+                removeDevice(device)
+            }
+            GattConnectionState.STATE_CONNECTING -> {
+                Log.d(DIAG_TAG, "ServerBleGatt: device CONNECTING ${device.address}")
+                removeDevice(device)
+            }
+            GattConnectionState.STATE_DISCONNECTING -> {
+                Log.d(DIAG_TAG, "ServerBleGatt: device DISCONNECTING ${device.address}")
+                removeDevice(device)
+            }
         }
     }
 
@@ -208,6 +224,8 @@ class ServerBleGatt internal constructor(
      * @param device A client device to remove.
      */
     private fun removeDevice(device: ClientDevice) {
+        val wasTracked = connections.value.containsKey(device)
+        Log.d(DIAG_TAG, "ServerBleGatt.removeDevice: ${device.address} wasTracked=$wasTracked")
         val mutableMap = connections.value.toMutableMap()
         mutableMap.remove(device)?.let {
             it.connectionProvider.connectionStateWithStatus.value =
@@ -226,6 +244,7 @@ class ServerBleGatt internal constructor(
      */
     @SuppressLint("MissingPermission")
     private fun connectDevice(device: ClientDevice) {
+        Log.d(DIAG_TAG, "ServerBleGatt.connectDevice: creating connection for ${device.address} totalConnections=${connections.value.size + 1}")
         val connectionProvider = ConnectionProvider(bufferSize)
         val copiedServices = services.map {
             ServerBleGattService(
@@ -260,6 +279,10 @@ class ServerBleGatt internal constructor(
      */
     private fun onServiceAdded(service: IBluetoothGattService, status: BleGattOperationStatus) {
         logger.trace("Service added (uuid: {}), status: {}", service.uuid, status)
+        Log.d(DIAG_TAG, "ServerBleGatt.onServiceAdded: uuid=${service.uuid} status=$status success=${status == BleGattOperationStatus.GATT_SUCCESS}")
+        if (status != BleGattOperationStatus.GATT_SUCCESS) {
+            Log.e(DIAG_TAG, "ServerBleGatt.onServiceAdded FAILED: uuid=${service.uuid} status=$status — server may not accept connections")
+        }
         if (status == BleGattOperationStatus.GATT_SUCCESS) {
             services = services + service
         }

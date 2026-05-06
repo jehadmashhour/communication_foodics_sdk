@@ -7,7 +7,6 @@ import client.toByteArray
 import client.toNSData
 import client.toUuid
 import com.benasher44.uuid.Uuid
-import io.github.aakira.napier.Napier
 import kotlinx.cinterop.ObjCSignatureOverride
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -89,18 +88,22 @@ class IOSServer(
         peripheral: CBPeripheralManager,
         error: NSError?
     ) {
-
+        if (error != null) {
+            println("[$TAG] peripheralManagerDidStartAdvertising ERROR: ${error.localizedDescription} code=${error.code}")
+        } else {
+            println("[$TAG] peripheralManagerDidStartAdvertising OK")
+        }
     }
 
     override fun peripheralManagerIsReadyToUpdateSubscribers(peripheral: CBPeripheralManager) {
-        Napier.i("Update subscribers", tag = TAG)
+        println("[$TAG] peripheralManagerIsReadyToUpdateSubscribers")
     }
 
     override fun peripheralManager(
         peripheral: CBPeripheralManager,
         didReceiveReadRequest: CBATTRequest
     ) {
-        Napier.i("Receive read request", tag = TAG)
+        println("[$TAG] peripheralManager:didReceiveReadRequest: central=${didReceiveReadRequest.central.identifier.UUIDString} char=${didReceiveReadRequest.characteristic().UUID.UUIDString}")
         val central = didReceiveReadRequest.central
         val profile = getProfile(central)
 
@@ -111,7 +114,6 @@ class IOSServer(
         peripheral: CBPeripheralManager,
         didReceiveWriteRequests: List<*>
     ) {
-        Napier.i("Receive write request", tag = TAG)
         try {
             val requests = didReceiveWriteRequests.map { it as CBATTRequest }
             requests.forEach { request ->
@@ -122,9 +124,11 @@ class IOSServer(
                     when {
                         text.startsWith(BluetoothConstants.HELLO_PREFIX) -> {
                             val name = text.removePrefix(BluetoothConstants.HELLO_PREFIX)
+                            println("[$TAG] peripheralManager:didReceiveWriteRequests: HELLO from central=$centralId name=$name")
                             _clientNames.value = _clientNames.value + (centralId to name)
                         }
                         text == BluetoothConstants.CLIENT_DISCONNECT_SIGNAL -> {
+                            println("[$TAG] peripheralManager:didReceiveWriteRequests: CSTOP from central=$centralId")
                             _clientNames.value = _clientNames.value - centralId
                             _centralDisconnectedEvent.tryEmit(centralId)
                         }
@@ -135,6 +139,7 @@ class IOSServer(
                             _qualityReportEvents.tryEmit(Triple(centralId, rssi, mtu))
                         }
                         else -> {
+                            println("[$TAG] peripheralManager:didReceiveWriteRequests: data from central=$centralId bytes=${data.size}")
                             _receivedWrites.tryEmit(Triple(centralId, request.characteristic().UUID.toUuid(), data))
                         }
                     }
@@ -142,7 +147,7 @@ class IOSServer(
             }
             requests.firstOrNull()?.let { manager.respondToRequest(it, CBATTErrorSuccess) }
         } catch (t: Throwable) {
-            Napier.i("Receive write request error", tag = TAG, throwable = t)
+            println("[$TAG] peripheralManager:didReceiveWriteRequests ERROR: ${t.message}")
         }
     }
 
@@ -152,7 +157,7 @@ class IOSServer(
         central: CBCentral,
         didSubscribeToCharacteristic: CBCharacteristic
     ) {
-        Napier.i("Subscribe to characteristic", tag = TAG)
+        println("[$TAG] peripheralManager:didSubscribeToCharacteristic: central=${central.identifier.UUIDString} char=${didSubscribeToCharacteristic.UUID.UUIDString} maximumUpdateValueLength=${central.maximumUpdateValueLength}")
         notificationsRecords.addCentral(didSubscribeToCharacteristic.UUID.toUuid(), central)
         // Don't add to _clientNames yet — wait for __HELLO__ to supply the display name.
         getProfile(central)
@@ -164,7 +169,7 @@ class IOSServer(
         central: CBCentral,
         didUnsubscribeFromCharacteristic: CBCharacteristic
     ) {
-        Napier.i("Unsubscribe from characteristic", tag = TAG)
+        println("[$TAG] peripheralManager:didUnsubscribeFromCharacteristic: central=${central.identifier.UUIDString} char=${didUnsubscribeFromCharacteristic.UUID.UUIDString}")
         notificationsRecords.removeCentral(didUnsubscribeFromCharacteristic.UUID.toUuid(), central)
         val centralId = central.identifier.UUIDString
         _clientNames.value = _clientNames.value - centralId
@@ -176,7 +181,11 @@ class IOSServer(
         didAddService: CBService,
         error: NSError?
     ) {
-        Napier.i("Add service", tag = TAG)
+        if (error != null) {
+            println("[$TAG] peripheralManager:didAddService ERROR: service=${didAddService.UUID.UUIDString} error=${error.localizedDescription} code=${error.code}")
+        } else {
+            println("[$TAG] peripheralManager:didAddService OK: service=${didAddService.UUID.UUIDString}")
+        }
         services = services + didAddService
     }
 
@@ -249,13 +258,13 @@ class IOSServer(
         val centrals = if (targetIds.isEmpty()) allCentrals
                        else allCentrals.filter { it.identifier.UUIDString in targetIds }
         if (centrals.isEmpty()) {
-            Napier.i("sendToSubscribers: no matching subscribers for $charUuid", tag = TAG)
+            println("[$TAG] sendToSubscribers: no matching subscribers for $charUuid")
             return
         }
         val cbChar = services
             .flatMap { svc -> svc.characteristics?.mapNotNull { it as? CBMutableCharacteristic } ?: emptyList() }
             .firstOrNull { it.UUID.toUuid() == charUuid }
-            ?: run { Napier.i("sendToSubscribers: characteristic $charUuid not found", tag = TAG); return }
+            ?: run { println("[$TAG] sendToSubscribers: characteristic $charUuid not found"); return }
         @Suppress("UNCHECKED_CAST")
         manager.updateValue(data.toNSData(), cbChar, centrals as List<CBCentral>)
     }

@@ -78,25 +78,31 @@ actual class BluetoothClientHandler(
 
     suspend fun connect(device: IoTDevice) {
         logger?.info(LOG_TITLE, "Connecting to BLE device", mapOf("device_name" to device.name, "device_address" to device.address))
+
+        logger?.info(LOG_TITLE, "BLE physical link connecting…", mapOf("device_name" to device.name))
         client.connect(device, scope)
+        logger?.info(LOG_TITLE, "BLE physical link established, discovering services…", mapOf("device_name" to device.name))
 
         val service = client.discoverServices().findService(SERVICE_UUID)
             ?: run {
                 logger?.error(LOG_TITLE, "BLE service not found on ${device.name}", extra = mapOf("service_uuid" to SERVICE_UUID))
                 throw Exception("Bluetooth service $SERVICE_UUID not found on ${device.name}")
             }
+        logger?.info(LOG_TITLE, "BLE service found", mapOf("device_name" to device.name, "service_uuid" to SERVICE_UUID))
 
         clientToServerChar = service.findCharacteristic(CHAR_FROM_CLIENT_UUID)
             ?: run {
                 logger?.error(LOG_TITLE, "Characteristic not found", extra = mapOf("char_uuid" to CHAR_FROM_CLIENT_UUID))
                 throw Exception("Characteristic $CHAR_FROM_CLIENT_UUID not found on ${device.name}")
             }
+        logger?.info(LOG_TITLE, "FROM_CLIENT characteristic found", mapOf("char_uuid" to CHAR_FROM_CLIENT_UUID))
 
         clientFromServerChar = service.findCharacteristic(CHAR_TO_CLIENT_UUID)
             ?: run {
                 logger?.error(LOG_TITLE, "Characteristic not found", extra = mapOf("char_uuid" to CHAR_TO_CLIENT_UUID))
                 throw Exception("Characteristic $CHAR_TO_CLIENT_UUID not found on ${device.name}")
             }
+        logger?.info(LOG_TITLE, "TO_CLIENT characteristic found, enabling notifications…", mapOf("char_uuid" to CHAR_TO_CLIENT_UUID))
 
         iosClient.startRssiPolling(scope)
         logger?.info(LOG_TITLE, "Connected to BLE server", mapOf("device_name" to device.name))

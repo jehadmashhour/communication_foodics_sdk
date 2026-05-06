@@ -60,6 +60,7 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
 
     private var onDeviceConnected: ((DeviceConnectionState) -> Unit)? = null
     private var onDeviceDisconnected: (() -> Unit)? = null
+    private var lastFailureReason: String? = null
     private var onServicesDiscovered: ((OperationStatus) -> Unit)? = null
     private var services: ClientServices? = null
 
@@ -150,8 +151,10 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         // Android BLE stack sometimes refuses the first connection attempt when it already has
         // an active central connection to this iOS device (dual-role scenario). Cancelling and
         // re-issuing connectPeripheral resets the link-layer state and succeeds on retry.
+        lastFailureReason = null
         val maxAttempts = 3
         for (attempt in 1..maxAttempts) {
+            println("[$TAG] IOSClient.connect attempt $attempt/$maxAttempts: peripheral=${peripheral.name} id=${peripheral.identifier.UUIDString}")
             try {
                 withTimeout(4_000) {
                     suspendCancellableCoroutine { continuation ->
@@ -161,7 +164,7 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
                                 when (state) {
                                     DeviceConnected -> continuation.resume(Unit)
                                     DeviceDisconnected -> continuation.resumeWith(
-                                        Result.failure(Exception("Connection rejected by device"))
+                                        Result.failure(Exception(lastFailureReason ?: "Connection rejected by device"))
                                     )
                                 }
                             }
@@ -173,13 +176,17 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
                         manager.connectPeripheral(peripheral, null)
                     }
                 }
+                println("[$TAG] IOSClient.connect SUCCESS on attempt $attempt: peripheral=${peripheral.name} id=${peripheral.identifier.UUIDString}")
                 return
             } catch (e: TimeoutCancellationException) {
+                println("[$TAG] IOSClient.connect TIMEOUT on attempt $attempt/$maxAttempts: peripheral=${peripheral.name}")
                 manager.cancelPeripheralConnection(peripheral)
                 if (attempt < maxAttempts) delay(1_000)
             }
         }
-        throw Exception("Connection failed: timed out after $maxAttempts attempts")
+        val reason = lastFailureReason ?: "timed out after $maxAttempts attempts"
+        println("[$TAG] IOSClient.connect FAILED after $maxAttempts attempts: peripheral=${peripheral.name} id=${peripheral.identifier.UUIDString} reason=$reason")
+        throw Exception("Connection failed: $reason")
     }
 
     suspend fun disconnect() {
@@ -208,6 +215,12 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
     // ---- DISCOVERY ------------------------------------------------------
 
     override fun peripheral(peripheral: CBPeripheral, didDiscoverServices: NSError?) {
+        val serviceUuids = peripheral.services?.map { (it as CBService).UUID.UUIDString } ?: emptyList()
+        if (didDiscoverServices != null) {
+            println("[$TAG] peripheral:didDiscoverServices ERROR: ${didDiscoverServices.localizedDescription} code=${didDiscoverServices.code}")
+        } else {
+            println("[$TAG] peripheral:didDiscoverServices: ${serviceUuids.size} services=$serviceUuids")
+        }
         peripheral.services?.map { it as CBService }?.forEach {
             peripheral.discoverCharacteristics(null, it)
         }
@@ -218,6 +231,12 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         didDiscoverCharacteristicsForService: CBService,
         error: NSError?
     ) {
+        val charUuids = didDiscoverCharacteristicsForService.characteristics?.map { (it as CBCharacteristic).UUID.UUIDString } ?: emptyList()
+        if (error != null) {
+            println("[$TAG] peripheral:didDiscoverCharacteristicsForService ERROR: service=${didDiscoverCharacteristicsForService.UUID.UUIDString} error=${error.localizedDescription}")
+        } else {
+            println("[$TAG] peripheral:didDiscoverCharacteristicsForService: service=${didDiscoverCharacteristicsForService.UUID.UUIDString} chars=$charUuids")
+        }
         peripheral.services
             ?.map { it as CBService }
             ?.flatMap { service ->
@@ -234,6 +253,11 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         didDiscoverDescriptorsForCharacteristic: CBCharacteristic,
         error: NSError?
     ) {
+        if (error != null) {
+            println("[$TAG] peripheral:didDiscoverDescriptorsForCharacteristic ERROR: char=${didDiscoverDescriptorsForCharacteristic.UUID.UUIDString} error=${error.localizedDescription}")
+        } else {
+            println("[$TAG] peripheral:didDiscoverDescriptorsForCharacteristic: char=${didDiscoverDescriptorsForCharacteristic.UUID.UUIDString} OK")
+        }
         onServicesDiscovered?.invoke(getOperationStatus(error))
     }
 
@@ -247,10 +271,21 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         didFailToConnectPeripheral: CBPeripheral,
         error: NSError?
     ) {
+        val code = error?.code?.toInt()
+        if (code == 14) {
+            // CBErrorPeerRemovedPairingInformation — Android cleared its bond cache but iOS still
+            // holds the old keys. The only fix is to forget the device in iOS Bluetooth settings.
+            println("[$TAG] centralManager:didFailToConnectPeripheral: PAIRING MISMATCH (code=14) — Android removed its bonding keys. FIX: iOS Settings → Bluetooth → '${didFailToConnectPeripheral.name}' → Forget This Device, then retry. peripheral=${didFailToConnectPeripheral.name} id=${didFailToConnectPeripheral.identifier.UUIDString}")
+            lastFailureReason = "Pairing mismatch: go to iOS Settings → Bluetooth → '${didFailToConnectPeripheral.name}' → Forget This Device, then retry"
+        } else {
+            println("[$TAG] centralManager:didFailToConnectPeripheral: ${didFailToConnectPeripheral.name} id=${didFailToConnectPeripheral.identifier.UUIDString} error=${error?.localizedDescription} code=$code")
+            lastFailureReason = error?.localizedDescription
+        }
         onDeviceConnected?.invoke(DeviceDisconnected)
     }
 
     override fun centralManager(central: CBCentralManager, didConnectPeripheral: CBPeripheral) {
+        println("[$TAG] centralManager:didConnectPeripheral: ${didConnectPeripheral.name} id=${didConnectPeripheral.identifier.UUIDString} state=${didConnectPeripheral.state}")
         onDeviceConnected?.invoke(DeviceConnected)
     }
 
@@ -260,6 +295,7 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         didDisconnectPeripheral: CBPeripheral,
         error: NSError?
     ) {
+        println("[$TAG] centralManager:didDisconnectPeripheral: ${didDisconnectPeripheral.name} id=${didDisconnectPeripheral.identifier.UUIDString} error=${error?.localizedDescription} code=${error?.code}")
         _disconnectEvent.tryEmit(Unit)
         onDeviceDisconnected?.invoke()
     }
@@ -298,6 +334,9 @@ class IOSClient : NSObject(), CBCentralManagerDelegateProtocol, CBPeripheralDele
         didWriteValueForCharacteristic: CBCharacteristic,
         error: NSError?
     ) {
+        if (error != null) {
+            println("[$TAG] peripheral:didWriteValueForCharacteristic ERROR: char=${didWriteValueForCharacteristic.UUID.UUIDString} error=${error.localizedDescription} code=${error.code}")
+        }
         services?.onEvent(
             OnGattCharacteristicWrite(
                 peripheral,
